@@ -12,6 +12,8 @@ import { createApp } from '../apps/api/src/app.ts';
 import { hashPassword, type AuthUser } from '../apps/api/src/auth.ts';
 import { id } from '../apps/api/src/context.ts';
 import { J, now } from '../apps/api/src/db.ts';
+import { saveOrgSettings } from '../apps/api/src/sponsorship/settings.ts';
+import sharp from 'sharp';
 import { MatchAggregate } from '../packages/engine/src/index.ts';
 import { simulate, rng } from '../packages/engine/src/sim.ts';
 
@@ -213,10 +215,139 @@ function sportLabel(id: string) {
   return ({ 'table-tennis': 'Table Tennis' } as any)[id] ?? id[0].toUpperCase() + id.slice(1);
 }
 
+// ------------------------------------------------------------------ sponsorship marketplace
+// Everything below goes through the marketplace services: real orders, real (sandbox) payments
+// confirmed by signed webhooks, real activation. Only the historical exposure is simulated.
+const SP = app.sponsorship;
+const GST = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const gstin = (state: string, pan: string) => {
+  const b = `${state}${pan}1Z`;
+  let sum = 0;
+  for (let i = 0; i < 14; i++) {
+    const v = GST.indexOf(b[i]) * (i % 2 === 0 ? 1 : 2);
+    sum += Math.floor(v / 36) + (v % 36);
+  }
+  return b + GST[(36 - (sum % 36)) % 36];
+};
+const member = (email: string, name: string, admin = false): AuthUser => {
+  const uid = id();
+  db.prepare('INSERT INTO users (id, org_id, email, name, password_hash, role, email_verified, platform_admin, created_at) VALUES (?,?,?,?,?,?,?,?,?)').run(uid, null, email, name, hashPassword('diary-demo-2026'), 'member', 1, admin ? 1 : 0, now());
+  return { id: uid, orgId: '', email, name, role: 'member' };
+};
+member('admin@sportsdiary.app', 'Platform Ops', true);
+saveOrgSettings(db, demo.orgId, { legalName: 'Riverside Sports Club LLP', gstin: gstin('24', 'AAQFR4821K'), state: 'Gujarat', invoicePrefix: 'RSC', address: 'Riverfront Road, Ahmedabad 380009' });
+
+const logoPng = (name: string, bg: string) => {
+  const initials = name.split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase();
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="300"><rect width="900" height="300" rx="36" fill="${bg}"/><circle cx="150" cy="150" r="96" fill="#fff" opacity=".95"/><text x="150" y="176" font-family="DejaVu Sans, Arial" font-size="78" font-weight="700" text-anchor="middle" fill="${bg}">${initials}</text><text x="285" y="178" font-family="DejaVu Sans, Arial" font-size="${name.length > 16 ? 58 : 72}" font-weight="700" fill="#fff">${name}</text></svg>`;
+  return sharp(Buffer.from(svg)).png().toBuffer();
+};
+const BRANDS: [string, string, string, string, string][] = [
+  ['Kesar Chai Co.', 'food-beverage', 'Restaurant / Hotel', '#B4441E', 'Ahmedabad'], ['Narmada Dairy', 'fmcg', 'Brand', '#1F6FB2', 'Vadodara'],
+  ['Kite Fintech', 'finance', 'Startup', '#5B2DBA', 'Bengaluru'], ['Sprint Sportswear', 'sportswear', 'Sports Brand', '#111827', 'Mumbai'],
+  ['Lakeside Motors', 'automotive', 'Local Business', '#0F766E', 'Ahmedabad'], ['Saffron Care Hospital', 'healthcare', 'Healthcare Organization', '#C2410C', 'Surat'],
+];
+const sponsors: { user: AuthUser; id: string; logo: string; name: string }[] = [];
+for (const [i, [name, industry, category, color, city]] of BRANDS.entries()) {
+  const user = member(i === 0 ? 'sponsor@sportsdiary.app' : `owner@${name.toLowerCase().replace(/[^a-z]+/g, '')}.example`, i === 0 ? 'Neha Kapoor' : person());
+  const acct = SP.sponsors.createAccount(user, { name, kind: 'organization', industry, category, city, country: 'India', website: `https://${name.toLowerCase().replace(/[^a-z]+/g, '')}.example`, publicProfile: true, description: `${name} backs grassroots sport across ${city}.` });
+  const asset = await SP.assets.upload(acct.id, user.id, 'logo', await logoPng(name, color), 'logo.png');
+  SP.sponsors.updateProfile(acct.id, { logoAssetId: asset.id, brandColors: [color] });
+  SP.sponsors.updateBilling(acct.id, { legalName: `${name} Pvt Ltd`, state: i === 0 ? 'Gujarat' : 'Maharashtra', country: 'India', email: user.email });
+  sponsors.push({ user, id: acct.id, logo: asset.id, name });
+}
+// a finance teammate for the demo sponsor
+db.prepare('INSERT INTO sponsor_members (sponsor_id, user_id, role, created_at) VALUES (?,?,?,?)').run(sponsors[0].id, member('finance@kesarchai.example', 'Arjun Mehta').id, 'finance', now());
+
+const today = new Date().toISOString().slice(0, 10);
+const plus = (d: number) => new Date(Date.now() + d * 864e5).toISOString().slice(0, 10);
+const opp = (u: AuthUser, b: any) => SP.market.createOpportunity(u, { publish: true, country: 'India', ...b });
+const badmintonOpp = opp(demo, { title: 'Riverside Badminton Open 2026', tournamentId: bt.id, city: 'Ahmedabad', state: 'Gujarat', level: 'state', audienceEstimate: 6500, audienceProfile: { ageGroups: ['18-24', '25-34'] }, startsOn: plus(-3), endsOn: plus(27), description: 'Eight of Gujarat’s best singles players across four courts at Riverside Arena, with every point on the arena’s LED boards and streamed live.', packages: [{ template: 'gold' }, { template: 'silver', maxSponsors: 2 }, { template: 'bronze', maxSponsors: 6 }] });
+const leagueOpp = opp(demo, { title: 'Riverside 7s Football League', tournamentId: ft.id, city: 'Ahmedabad', state: 'Gujarat', level: 'local', audienceEstimate: 4200, audienceProfile: { ageGroups: ['18-24', '25-34', '35-44'] }, startsOn: plus(-2), endsOn: plus(40), approvalMode: 'asset_review', packages: [{ name: 'Match Sponsor (season)', price: 75000, items: [{ type: 'match_sponsor' }, { type: 'player_of_match' }, { type: 'qr_ad' }] }, { template: 'silver', maxSponsors: 2 }, { template: 'bronze', maxSponsors: 4 }] });
+opp(demo, { title: 'Riverside Arena — LED screens & venue branding', venueId: arena.id, city: 'Ahmedabad', state: 'Gujarat', level: 'local', audienceEstimate: 9000, audienceProfile: { ageGroups: ['13-17', '18-24', '25-34', '35-44'] }, startsOn: today, endsOn: plus(90), packages: [{ name: 'Venue Partner (90 days)', price: 150000, maxSponsors: 1, items: [{ type: 'venue_sponsor' }, { type: 'led_screen', quantity: 4 }, { type: 'court_branding' }, { type: 'wall_branding' }] }, { name: 'Timeout & break slots', price: 30000, maxSponsors: 3, items: [{ type: 'timeout_sponsor' }, { type: 'break_sponsor' }] }] });
+opp(demo, { title: 'Badminton Open — Finals naming rights', tournamentId: bt.id, city: 'Ahmedabad', state: 'Gujarat', level: 'state', audienceEstimate: 3000, saleModel: 'auction', packages: [{ name: 'Finals presented by', items: [{ type: 'title_sponsor' }], auction: { startPrice: 60000, increment: 5000, reserve: 80000, endsAt: new Date(Date.now() + 5 * 864e5).toISOString() } }] });
+opp(demo, { title: 'Riverside T20 Cricket Bash', sport: 'cricket', city: 'Ahmedabad', state: 'Gujarat', level: 'state', audienceEstimate: 15000, audienceProfile: { ageGroups: ['18-24', '25-34'] }, startsOn: plus(5), endsOn: plus(35), description: 'Floodlit T20 nights at the Cricket Oval with ball-by-ball scoring on the LED board and live stream.', packages: [{ template: 'gold' }, { template: 'silver', maxSponsors: 3 }, { template: 'bronze', maxSponsors: 8 }, { name: 'Six & wicket moments', price: 120000, items: [{ type: 'tv_fullscreen_ad', quantity: 10 }, { type: 'stream_overlay' }, { type: 'qr_ad' }] }] });
+opp(demo, { title: 'Corporate Padel Nights', sport: 'padel', city: 'Ahmedabad', state: 'Gujarat', level: 'corporate', audienceEstimate: 1200, audienceProfile: { ageGroups: ['25-34', '35-44'] }, saleModel: 'negotiated', startsOn: plus(7), endsOn: plus(60), packages: [{ name: 'Court partner', price: 40000, maxSponsors: 2, items: [{ type: 'venue_sponsor' }, { type: 'linkedin_post', quantity: 2 }, { type: 'instagram_story', quantity: 2 }] }] });
+// other organizers list too, so the marketplace has range
+const others = db.prepare("SELECT o.id AS orgId, u.id, u.email, t.id AS tid, t.name AS tname, t.sport FROM organizations o JOIN users u ON u.org_id = o.id AND u.role = 'org_admin' JOIN tournaments t ON t.org_id = o.id WHERE o.id != ? GROUP BY o.id LIMIT 12").all(demo.orgId) as any[];
+const STATE_OF: Record<string, string> = { Ahmedabad: 'Gujarat', Sanand: 'Gujarat', Gandhinagar: 'Gujarat', Vadodara: 'Gujarat', Surat: 'Gujarat', Rajkot: 'Gujarat', Mumbai: 'Maharashtra', Pune: 'Maharashtra', Bengaluru: 'Karnataka', Hyderabad: 'Telangana', Chennai: 'Tamil Nadu', Delhi: 'Delhi', Jaipur: 'Rajasthan', Kochi: 'Kerala', Kolkata: 'West Bengal' };
+for (const [i, o] of others.entries()) {
+  const first = o.tname.split(' ')[0];
+  const city = CITIES.includes(first) ? first : ({ Baroda: 'Vadodara', Sabarmati: 'Ahmedabad', Navrangpura: 'Ahmedabad', Gujarat: 'Ahmedabad', Lakeside: 'Sanand' } as Record<string, string>)[first] ?? CITIES[i % CITIES.length];
+  opp({ id: o.id, orgId: o.orgId, email: o.email, name: 'Admin', role: 'org_admin' }, {
+    title: `${o.tname} — sponsorship`, tournamentId: o.tid, city, state: STATE_OF[city], level: pick(['local', 'state', 'college', 'corporate', 'national']), audienceEstimate: 800 + Math.floor(R() * 18000),
+    audienceProfile: { ageGroups: [pick(['13-17', '18-24']), pick(['25-34', '35-44'])] }, startsOn: plus(Math.floor(R() * 20) - 5), endsOn: plus(30 + Math.floor(R() * 60)),
+    packages: R() < 0.5 ? [{ template: 'gold' }, { template: 'silver', maxSponsors: 2 }, { template: 'bronze', maxSponsors: 5 }] : [{ template: 'silver', maxSponsors: 3 }, { template: 'bronze', maxSponsors: 8 }],
+  });
+}
+db.prepare('UPDATE sp_opportunities SET featured_until = ? WHERE id IN (?, ?)').run(new Date(Date.now() + 30 * 864e5).toISOString(), badmintonOpp.id, leagueOpp.id);
+
+const pkgOf = (o: any, tier: string) => o.packages.find((p: any) => p.tier === tier || p.name === tier);
+const buy = async (s: (typeof sponsors)[number], o: any, pkg: any, pay = true, startsOn?: string) => {
+  const order = SP.orders.createOrder(s.user, s.id, { opportunityId: o.id, packageId: pkg.id, assetIds: { logo: s.logo }, startsOn: startsOn ?? today, clickUrl: `https://${s.name.toLowerCase().replace(/[^a-z]+/g, '')}.example/offer` });
+  if (!pay) return order;
+  const r = await SP.orders.pay(s.user, s.id, order.id, { acceptAgreement: true }, '127.0.0.1');
+  const ev = SP.registry.sandbox.complete(r.client.redirectUrl.split('/').pop(), 'success', pick(['upi', 'card', 'netbanking']));
+  await SP.orders.webhook('sandbox', null, Buffer.from(ev.body), ev.headers);
+  return SP.orders.view(SP.orders.row(order.id), 'sponsor');
+};
+const gold = await buy(sponsors[0], badmintonOpp, pkgOf(badmintonOpp, 'gold'));
+await buy(sponsors[1], badmintonOpp, pkgOf(badmintonOpp, 'silver'));
+await buy(sponsors[2], badmintonOpp, pkgOf(badmintonOpp, 'bronze'));
+await buy(sponsors[4], badmintonOpp, pkgOf(badmintonOpp, 'bronze'));
+const league = await buy(sponsors[3], leagueOpp, pkgOf(leagueOpp, 'Match Sponsor (season)')); // asset review → organizer approves
+SP.orders.approve(demo, league.id, {});
+await buy(sponsors[5], leagueOpp, pkgOf(leagueOpp, 'silver')); // left in creative review for the demo
+await buy(sponsors[0], leagueOpp, pkgOf(leagueOpp, 'bronze'), false); // awaiting payment
+// a negotiation in progress and two auction bids
+const padel = db.prepare("SELECT id FROM sp_opportunities WHERE title = 'Corporate Padel Nights'").get() as any;
+const padelPkg = db.prepare('SELECT id FROM sp_packages WHERE opportunity_id = ?').get(padel.id) as any;
+const th = SP.deals.startThread(sponsors[2].user, sponsors[2].id, { opportunityId: padel.id, packageId: padelPkg.id, message: 'We would love to back the corporate nights. Could you do ₹32,000 for both months?', offer: 32000 });
+SP.deals.reply(demo, th.id, 'organizer', { orgId: demo.orgId }, { message: 'We can do ₹36,000 including two extra LinkedIn posts.', offer: 36000 });
+const finals = db.prepare("SELECT p.id FROM sp_packages p JOIN sp_opportunities o ON o.id = p.opportunity_id WHERE o.title LIKE 'Badminton Open — Finals%'").get() as any;
+SP.deals.bid(sponsors[3].user, sponsors[3].id, finals.id, 70000);
+SP.deals.bid(sponsors[0].user, sponsors[0].id, finals.id, 90000);
+// two deliverables already done for the Gold sponsor
+for (const d of (db.prepare("SELECT id FROM sp_deliverables WHERE order_id = ? AND type = 'instagram_post'").all(gold.id) as any[]).slice(0, 1)) SP.orders.markDeliverable(demo, d.id, { status: 'delivered', proofUrl: 'https://instagram.com/p/riverside-open-kesar' });
+
+// demo orders were bought when each event opened
+db.prepare("UPDATE sp_orders SET starts_on = (SELECT starts_on FROM sp_opportunities op WHERE op.id = sp_orders.opportunity_id) WHERE status = 'ACTIVE' AND (SELECT starts_on FROM sp_opportunities op WHERE op.id = sp_orders.opportunity_id) < starts_on").run();
+db.prepare('UPDATE sp_placements SET starts_on = (SELECT starts_on FROM sp_orders o WHERE o.id = sp_placements.order_id)').run();
+// simulated historical exposure for live sponsorships (demo only; production numbers come from screens and pages)
+const bump = db.prepare('INSERT INTO sp_exposure_daily (order_id, day, metric, dim, value) VALUES (?,?,?,?,?) ON CONFLICT(order_id, day, metric, dim) DO UPDATE SET value = value + excluded.value');
+const uniq = db.prepare('INSERT OR IGNORE INTO sp_unique_viewers (order_id, day, viewer) VALUES (?,?,?)');
+for (const o of db.prepare("SELECT o.*, p.tier FROM sp_orders o LEFT JOIN sp_packages p ON p.id = o.package_id WHERE o.status = 'ACTIVE'").all() as any[]) {
+  const w = o.tier === 'gold' ? 3 : o.tier === 'silver' ? 1.8 : 1;
+  for (let back = 13; back >= 1; back--) {
+    const day = new Date(Date.now() - back * 864e5).toISOString().slice(0, 10);
+    const matchDay = R() < 0.7;
+    const screens = matchDay ? 3 + Math.floor(R() * 3) : 1;
+    bump.run(o.id, day, 'tv_seconds', 'tv_logo', Math.round(screens * 3600 * (matchDay ? 6 : 2) * (0.6 + R() * 0.4)));
+    bump.run(o.id, day, 'tv_plays', 'tv_fullscreen', Math.round((matchDay ? 40 : 8) * w));
+    bump.run(o.id, day, 'tv_audience_seconds', '', Math.round(screens * 3600 * 4 * 60 * w));
+    bump.run(o.id, day, 'screens', '', screens);
+    bump.run(o.id, day, 'venue_audience', '', screens * 50);
+    const views = Math.round((matchDay ? 900 : 180) * w * (0.7 + R() * 0.6));
+    bump.run(o.id, day, 'live_impressions', 'live_page', views);
+    bump.run(o.id, day, 'unique_viewers', '', Math.round(views * 0.42));
+    for (let v = 0; v < Math.min(50, Math.round(views * 0.05)); v++) uniq.run(o.id, day, `v:demo-${day}-${v}`);
+    bump.run(o.id, day, 'clicks', '', Math.round(views * 0.012));
+    bump.run(o.id, day, 'qr_scans', '', Math.round((matchDay ? 22 : 4) * w));
+    bump.run(o.id, day, 'qr_unique', '', Math.round((matchDay ? 18 : 3) * w));
+  }
+}
+const qr = db.prepare('SELECT code FROM sp_qr_codes WHERE order_id = ?').get(gold.id) as any;
+const btMatch = db.prepare("SELECT id, tournament_id, venue_id FROM matches WHERE tournament_id = ? LIMIT 1").get(bt.id) as any;
+for (let k = 0; k < 64; k++) db.prepare('INSERT INTO sp_qr_scans (code, order_id, viewer, tournament_id, venue_id, match_id, at) VALUES (?,?,?,?,?,?,?)').run(qr.code, gold.id, `demo${k}`, btMatch.tournament_id, btMatch.venue_id, btMatch.id, new Date(Date.now() - R() * 10 * 864e5).toISOString());
+
 const count = (t: string) => (db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get() as any).n;
 console.log(`Seeded in ${((Date.now() - t0) / 1000).toFixed(1)}s:`);
 console.log(`  organizations ${count('organizations')}, tournaments ${count('tournaments')}, teams ${count('teams')}, players ${count('players')}`);
 console.log(`  venues ${count('venues')}, courts/tables/fields ${count('surfaces')}, matches ${count('matches')} (${(db.prepare("SELECT COUNT(*) AS n FROM matches WHERE status='live'").get() as any).n} live), events ${count('match_events')}, screens ${count('display_devices')}`);
-console.log('\nDemo login: demo@sportsdiary.app / diary-demo-2026   (scorer: scorer@sportsdiary.app / diary-demo-2026)');
+console.log(`  sponsorship: ${count('sp_opportunities')} opportunities, ${count('sponsor_accounts')} sponsors, ${count('sp_orders')} orders (${(db.prepare("SELECT COUNT(*) AS n FROM sp_orders WHERE status='ACTIVE'").get() as any).n} live), ${count('sp_invoices')} invoices`);
+console.log('\nDemo logins (password diary-demo-2026):');
+console.log('  organizer  demo@sportsdiary.app      → /console   (scorer: scorer@sportsdiary.app)');
+console.log('  sponsor    sponsor@sportsdiary.app   → /sponsor');
+console.log('  platform   admin@sportsdiary.app     → /admin');
 void tournamentsMade;
 await app.close();

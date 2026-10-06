@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 
 // IIFE + ES2017 so the TV bundle runs on older smart-TV browsers (Tizen / webOS / Android TV WebView).
 await build({
-  entryPoints: { console: 'apps/web/src/console.ts', tv: 'apps/web/src/tv.ts', score: 'apps/web/src/score.ts', live: 'apps/web/src/live.ts', home: 'apps/web/src/home.ts' },
+  entryPoints: { console: 'apps/web/src/console.ts', tv: 'apps/web/src/tv.ts', score: 'apps/web/src/score.ts', live: 'apps/web/src/live.ts', home: 'apps/web/src/home.ts', sponsor: 'apps/web/src/sponsor.ts', market: 'apps/web/src/market.ts', admin: 'apps/web/src/admin.ts', pay: 'apps/web/src/pay.ts' },
   bundle: true,
   format: 'iife',
   target: ['es2017'],
