@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sports Diary</title>
+<meta name="description" content="Score eleven sports from one phone and put every point on every screen in the venue, live.">
+<meta name="theme-color" content="#062547">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&display=swap">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/home.css">
+</head>
+<body class="home">
+<header class="h-nav">
+  <div class="h-wrap h-nav-row">
+    <a class="h-brand" href="/" aria-label="Sports Diary home"><img src="/brand/sports-diary-on-dark.svg" alt="Sports Diary" width="381" height="83"></a>
+    <nav class="h-links" aria-label="Sections">
+      <a href="#sports">Sports</a>
+      <a href="#screens">Big screen</a>
+      <a href="#venues">Venues</a>
+      <a href="#tournaments">Tournaments</a>
+    </nav>
+    <div class="h-nav-cta">
+      <a class="h-link-quiet" id="nav-signin" href="/console">Sign in</a>
+      <a class="h-btn h-btn-green" href="/console?signup">Start free</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- HERO: one tap on the phone, the point lands on the big screen (live, real rule engine) -->
+  <section class="h-hero" aria-labelledby="hero-title">
+    <div class="h-lines" aria-hidden="true"></div>
+    <div class="h-wrap h-hero-grid">
+      <div class="h-hero-copy">
+        <h1 id="hero-title" class="h-display">
+          <span class="h-line"><span>Every score.</span></span>
+          <span class="h-line"><span>Every screen.</span></span>
+        </h1>
+        <p class="h-lede">Score eleven sports from one phone. Every point lands on every TV in the venue the moment it’s tapped, with no screen mirroring and no refresh.</p>
+        <div class="h-cta-row">
+          <a class="h-btn h-btn-green h-btn-lg" href="/console?signup">Start free</a>
+          <a class="h-btn h-btn-ghost h-btn-lg" href="#screens">See how screens pair</a>
+        </div>
+        <div class="h-switch">
+          <p class="h-switch-label" id="switch-label">Pick a sport for the demo</p>
+          <div class="h-chips" role="tablist" aria-labelledby="switch-label" id="sport-chips"></div>
+        </div>
+      </div>
+
+      <div class="h-scene" aria-label="Live demo: a scorer's phone updating a stadium screen">
+        <div class="h-tv">
+          <div class="h-tv-bezel">
+            <div class="h-tv-screen" id="hero-tv"></div>
+          </div>
+          <div class="h-tv-stand" aria-hidden="true"></div>
+        </div>
+        <div class="h-phone">
+          <div class="h-phone-screen" id="hero-phone"></div>
+        </div>
+        <svg class="h-signal" viewBox="0 0 100 69" preserveAspectRatio="none" aria-hidden="true">
+          <path id="signal-track" d="M 24 40 C 30 24, 38 18, 48 22" pathLength="100" />
+          <path id="signal-pulse" d="M 24 40 C 30 24, 38 18, 48 22" pathLength="100" />
+        </svg>
+        <p class="h-scene-note">This demo is running the Sports Diary scoring engine live in your browser.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIVE TICKER: every sport, scoring right now -->
+  <div class="h-ticker" aria-label="Live scores from the demo">
+    <span class="h-ticker-tag"><i></i>Live</span>
+    <div class="h-ticker-track"><div class="h-ticker-run" id="ticker"></div></div>
+  </div>
+
+  <!-- SPORTS -->
+  <section class="h-section h-paper" id="sports" aria-labelledby="sports-title">
+    <div class="h-wrap">
+      <div class="h-head">
+        <h2 class="h-h2" id="sports-title">Eleven sports. One engine that knows every rule.</h2>
+        <p class="h-sub">Free hits and Super Overs. Golden points. Side-outs and server numbers. Snookers required. The rules live in the engine, so scorers just tap and the score is always legal.</p>
+      </div>
+      <div class="h-sport-grid" id="sport-grid"></div>
+    </div>
+  </section>
+
+  <!-- BIG SCREEN -->
+  <section class="h-section h-navy" id="screens" aria-labelledby="screens-title">
+    <div class="h-wrap h-split">
+      <div class="h-split-copy">
+        <h2 class="h-h2" id="screens-title">Six digits to the big screen.</h2>
+        <p class="h-sub">Any screen with a browser becomes a live scoreboard. Pair it once and it follows whatever you assign: one match, every court, standings or a sponsor loop.</p>
+        <ol class="h-steps">
+          <li><strong>Open the screen link on the TV.</strong><span>It shows a six-digit code and a QR code.</span></li>
+          <li><strong>Type the code in Sports Diary.</strong><span>Or scan the QR with a signed-in phone.</span></li>
+          <li><strong>The screen follows the match.</strong><span>If the internet drops, it keeps the last score and catches up on its own.</span></li>
+        </ol>
+        <p class="h-works">Works on smart-TV browsers, Android TV, Chromecast, a mini PC, a Raspberry Pi kiosk or a laptop on HDMI.</p>
+      </div>
+      <div class="h-pair-demo" aria-label="Pairing demo">
+        <div class="h-tv h-tv-flat">
+          <div class="h-tv-bezel"><div class="h-tv-screen" id="pair-tv"></div></div>
+          <div class="h-tv-stand" aria-hidden="true"></div>
+        </div>
+        <div class="h-pair-card" id="pair-card" aria-hidden="true">
+          <p class="h-pair-title">Pair a screen</p>
+          <div class="h-pair-input" id="pair-input"></div>
+          <div class="h-pair-btn" id="pair-btn">Pair screen</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VENUES -->
+  <section class="h-section h-paper" id="venues" aria-labelledby="venues-title">
+    <div class="h-wrap">
+      <div class="h-head">
+        <h2 class="h-h2" id="venues-title">Run every court from one screen.</h2>
+        <p class="h-sub">Academies, clubs and tournament halls run many matches at once. One master screen shows every court, and each court’s TV shows its own match.</p>
+      </div>
+      <div class="h-venue">
+        <div class="h-wall">
+          <div class="h-wall-bezel">
+            <div class="h-wall-screen">
+              <div class="h-wall-head"><span>Riverside Arena</span><img src="/brand/sports-diary-on-dark.svg" alt="" width="381" height="83"></div>
+              <div class="h-wall-grid" id="wall-grid"></div>
+              <div class="h-wall-announce" id="wall-announce" hidden><p>Court 3 is closed for 10 minutes. Please use Court 4.</p></div>
+            </div>
+          </div>
+        </div>
+        <aside class="h-venue-side">
+          <ul class="h-features">
+            <li><strong>Courts follow their own matches</strong><span>When a match ends, the next one on that court appears automatically.</span></li>
+            <li><strong>Playlists for lobby screens</strong><span>Rotate live scores, standings, upcoming matches and sponsors.</span></li>
+            <li><strong>Announcements in one tap</strong><span>Send a notice or an emergency message to every screen at once.</span></li>
+          </ul>
+          <div class="h-health">
+            <p class="h-health-title">Screens</p>
+            <ul id="health"></ul>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- OFFLINE -->
+  <section class="h-section h-navy" aria-labelledby="offline-title">
+    <div class="h-wrap h-split h-split-rev">
+      <div class="h-split-copy">
+        <h2 class="h-h2" id="offline-title">Keeps scoring when the Wi-Fi doesn’t.</h2>
+        <p class="h-sub">The scorer’s phone runs the same rules as the server. Points are saved on the device and sent the moment the signal returns, in order and never twice. Screens hold the last score until then.</p>
+      </div>
+      <div class="h-offline" aria-label="Offline scoring demo">
+        <div class="h-off-phone">
+          <p class="h-off-status" id="off-status">All saved</p>
+          <div class="h-off-score"><span id="off-phone-a">14</span><em>–</em><span id="off-phone-b">12</span></div>
+          <p class="h-off-cap">Scorer’s phone</p>
+        </div>
+        <div class="h-off-link" id="off-link" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="h-off-tv">
+          <p class="h-off-banner" id="off-banner">Live</p>
+          <div class="h-off-score"><span id="off-tv-a">14</span><em>–</em><span id="off-tv-b">12</span></div>
+          <p class="h-off-cap">Court 2 screen</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TOURNAMENTS -->
+  <section class="h-section h-paper" id="tournaments" aria-labelledby="tour-title">
+    <div class="h-wrap">
+      <div class="h-head">
+        <h2 class="h-h2" id="tour-title">Fixtures, standings and match reports, done for you.</h2>
+        <p class="h-sub">Generate a league or knockout across your courts without clashes. Standings update as each match ends, and every report is written from what was actually scored.</p>
+      </div>
+      <div class="h-tour">
+        <article class="h-card">
+          <header class="h-card-head"><h3>Diwali Open, Group A</h3><span>Badminton singles</span></header>
+          <div class="h-table-wrap"><table class="h-table" id="standings"></table></div>
+        </article>
+        <article class="h-card">
+          <header class="h-card-head"><h3>Match report</h3><span id="report-sub">Cricket T10</span></header>
+          <div id="report"></div>
+          <p class="h-card-foot">Written from the ball-by-ball record. Nothing in it is guessed.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="h-final" id="start" aria-labelledby="final-title">
+    <div class="h-lines" aria-hidden="true"></div>
+    <div class="h-wrap h-final-inner">
+      <h2 class="h-display h-final-title" id="final-title">Put your next match on the big screen.</h2>
+      <p class="h-lede">Eleven sports and 47 match formats. Works offline. In English, हिन्दी and ગુજરાતી.</p>
+      <div class="h-cta-row">
+        <a class="h-btn h-btn-green h-btn-lg" href="/console?signup">Start free</a>
+        <a class="h-btn h-btn-ghost h-btn-lg" href="/console">Sign in</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="h-foot">
+  <div class="h-wrap h-foot-row">
+    <img src="/brand/sports-diary-on-dark.svg" alt="Sports Diary" width="381" height="83">
+    <p>Football, cricket, badminton, table tennis, tennis, padel, pickleball, volleyball, basketball, snooker and billiards.</p>
+  </div>
+</footer>
+
+<script src="/js/home.js" defer></script>
+<script src="/sw-register.js" defer></script>
+</body>
+</html>

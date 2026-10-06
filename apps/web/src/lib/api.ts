@@ -27,7 +27,7 @@ export async function api<T = any>(method: string, path: string, body?: any): Pr
   if (!res.ok) {
     if (res.status === 401 && !path.startsWith('/api/auth/')) {
       session.token = null;
-      location.href = `/?next=${encodeURIComponent(location.pathname + location.search)}`;
+      location.href = `/console?next=${encodeURIComponent(location.pathname + location.search)}`;
     }
     throw new ApiError(res.status, json?.error?.message ?? `Request failed (${res.status})`, json?.error?.code);
   }

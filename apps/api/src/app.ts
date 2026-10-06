@@ -344,7 +344,7 @@ export function createApp(opts: { dbFile?: string; rateLimitScale?: number } = {
 
   // ------------------------------------------------------------------ static web app
   const PAGES: [RegExp, string][] = [
-    [/^\/$/, 'index.html'], [/^\/console(\/.*)?$/, 'index.html'], [/^\/pair$/, 'index.html'],
+    [/^\/$/, 'home.html'], [/^\/console(\/.*)?$/, 'index.html'], [/^\/pair$/, 'index.html'],
     [/^\/score\/[^/]+$/, 'score.html'], [/^\/tv(\/.*)?$/, 'tv.html'], [/^\/overlay\/.+$/, 'tv.html'],
     [/^\/live\/[^/]+$/, 'live.html'], [/^\/t\/[^/]+$/, 'live.html'],
   ];

@@ -384,7 +384,7 @@ function pairDialog(code = '') {
       try {
         const r = await api('POST', '/api/displays/pair', { code: d.code, name: d.name || undefined, venueId: d.venueId || undefined, assignment: d.venueId ? { mode: 'venue', venueId: d.venueId } : undefined });
         toast(`${r.name} paired`);
-        history.replaceState(null, '', '/#screens');
+        history.replaceState(null, '', '/console#screens');
         pageScreens();
       } catch (e: any) {
         toast(e.message, 'error');
@@ -486,7 +486,7 @@ async function pagePeople() {
 
 // ------------------------------------------------------------------ boot
 async function boot() {
-  if (!session.token) return renderAuth();
+  if (!session.token) return renderAuth(params.has('signup') ? 'register' : 'login');
   try {
     [me, sports, venues] = await Promise.all([api('GET', '/api/me'), api('GET', '/api/sports'), api('GET', '/api/venues')]);
   } catch {

@@ -1,8 +1,8 @@
 // App-shell service worker: screens and scorers boot with no network.
 // Pages: network-first (fresh deploys win), falling back to cache. Assets: stale-while-revalidate.
 // Never caches /api or /ws — live data always comes from the server or the app's own local store.
-const CACHE = 'sportsdiary-shell-v2';
-const SHELL = ['/', '/tv', '/score/_', '/live/_', '/styles.css', '/js/console.js', '/js/tv.js', '/js/score.js', '/js/live.js', '/icon.svg', '/manifest.webmanifest', '/brand/sports-diary.svg', '/brand/sports-diary-on-dark.svg'];
+const CACHE = 'sportsdiary-shell-v3';
+const SHELL = ['/', '/console', '/home.css', '/js/home.js', '/tv', '/score/_', '/live/_', '/styles.css', '/js/console.js', '/js/tv.js', '/js/score.js', '/js/live.js', '/icon.svg', '/manifest.webmanifest', '/brand/sports-diary.svg', '/brand/sports-diary-on-dark.svg'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -16,6 +16,7 @@ const pageKey = (url) => {
   if (p.startsWith('/score/')) return '/score/_';
   if (p.startsWith('/live/') || p.startsWith('/t/')) return '/live/_';
   if (p.startsWith('/tv') || p.startsWith('/overlay')) return '/tv';
+  if (p.startsWith('/console') || p === '/pair') return '/console';
   return '/';
 };
 

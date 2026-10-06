@@ -24,7 +24,7 @@ interface Saved {
   conflicts: { input: EventInput; error: string; at: string }[];
 }
 
-if (!session.token) location.href = `/?next=${encodeURIComponent(location.pathname)}`;
+if (!session.token) location.href = `/console?next=${encodeURIComponent(location.pathname)}`;
 const matchId = location.pathname.split('/')[2];
 const KEY = `arena.score.${matchId}`;
 const app = document.getElementById('app')!;
@@ -92,7 +92,7 @@ async function refreshFromServer() {
     flush();
   } catch (e: any) {
     online = false;
-    if (!saved) app.innerHTML = `<div class="empty"><h1>Can't load this match</h1><p>${esc(e.message)}</p><p>Reconnect to the internet to open a match for the first time on this device. After that, it works offline.</p><a class="btn" href="/">Back to console</a></div>`;
+    if (!saved) app.innerHTML = `<div class="empty"><h1>Can't load this match</h1><p>${esc(e.message)}</p><p>Reconnect to the internet to open a match for the first time on this device. After that, it works offline.</p><a class="btn" href="/console">Back to console</a></div>`;
     else render();
     setTimeout(refreshFromServer, 5000);
   }
@@ -220,7 +220,7 @@ function render() {
   const focus = (document.activeElement as HTMLElement | null)?.dataset?.i;
   app.innerHTML = `
     <header class="score-top">
-      <a class="back" href="/" aria-label="Back to console">‹</a>
+      <a class="back" href="/console" aria-label="Back to console">‹</a>
       <div class="score-title"><strong>${esc(saved.title)}</strong><span>${esc([agg.engine.name, saved.meta?.surface].filter(Boolean).join(', '))} <b class="sync ${sync.cls}" role="status">${esc(sync.text)}</b></span></div>
       <button class="btn btn-cast" data-cmd="cast">Cast to TV</button>
     </header>
