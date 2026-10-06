@@ -4,7 +4,7 @@ import { J, now } from './db.ts';
 import type { Hub } from './realtime.ts';
 
 export class HttpError extends Error {
-  constructor(public status: number, message: string, public code = 'ERROR', public details?: any) {
+  constructor(public status: number, message: string, public code = 'ERROR', public details?: any, public headers?: Record<string, string>) {
     super(message);
   }
 }

@@ -132,13 +132,19 @@ export class TournamentService {
     return { sport: t.sport, format: t.format, tables };
   }
 
+  /** Extensions that add to the public tournament projection (e.g. sponsor wall). */
+  publicExtensions: ((t: any) => Record<string, any> | null)[] = [];
+
   publicView(t: any) {
     const matches = (this.ctx.db.prepare('SELECT * FROM matches WHERE tournament_id = ? ORDER BY round, COALESCE(scheduled_at, created_at)').all(t.id) as any[]) as MatchRow[];
-    return {
+    const out = {
       code: t.public_code, name: t.name, sport: t.sport, discipline: t.discipline, format: t.format, status: t.status,
       standings: t.format === 'knockout' ? null : this.standings(t.id),
-      matches: matches.filter((m) => m.visibility === 'public').map((m) => this.matches.publicView(m)),
+      // per-match extensions are omitted here; the tournament-level ones below cover the page
+      matches: matches.filter((m) => m.visibility === 'public').map((m) => this.matches.publicView(m, { extensions: false })),
     };
+    for (const ext of this.publicExtensions) Object.assign(out, ext(t) ?? {});
+    return out;
   }
 
   broadcast(tid: string) {

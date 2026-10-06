@@ -49,6 +49,8 @@ const ONLINE_WINDOW_MS = 45_000;
 
 export class DisplayService {
   private refreshTimers = new Map<string, NodeJS.Timeout>();
+  /** Sponsor branding for a device (set by the sponsorship module). */
+  brandingResolver: ((d: any, scope: { matchIds: string[]; tournamentIds: string[] }) => { view: any; sponsorsCompat: any[] }) | null = null;
 
   constructor(private ctx: Ctx, private matches: MatchService, private tournaments: TournamentService) {
     // Venue/tournament screens must follow matches as they start, finish and move courts.
@@ -334,7 +336,10 @@ export class DisplayService {
       tournament: v.tournament ? tCode[v.tournament] : undefined,
     }));
     const org = orgId ? (this.ctx.db.prepare('SELECT name, branding FROM organizations WHERE id = ?').get(orgId) as any) : null;
-    const sponsors = orgId ? (this.ctx.db.prepare('SELECT name, logo_url AS logoUrl, tier FROM sponsors WHERE org_id = ? ORDER BY tier, name').all(orgId) as any[]) : [];
+    const legacy = orgId ? (this.ctx.db.prepare('SELECT name, logo_url AS logoUrl, tier FROM sponsors WHERE org_id = ? ORDER BY tier, name').all(orgId) as any[]) : [];
+    const branding = orgId && this.brandingResolver ? this.brandingResolver(d, { matchIds: [...matchIds], tournamentIds: [...tournamentIds] }) : null;
+    // `sponsors` keeps its original shape for older TV builds; `branding` carries placements.
+    const sponsors = branding?.sponsorsCompat ?? legacy;
     const ann = orgId ? (this.ctx.db.prepare('SELECT id, text, level, expires_at AS until FROM announcements WHERE org_id = ? AND expires_at > ? ORDER BY created_at DESC LIMIT 1').get(orgId, now()) as any) : null;
     const topics = [
       `display:${d.id}`,
@@ -353,6 +358,7 @@ export class DisplayService {
         matches: matchData,
         tournaments: tData,
         sponsors,
+        branding: branding?.view ?? null,
         announcement: ann,
       },
       topics,
@@ -375,6 +381,12 @@ export class DisplayService {
   dispose() {
     for (const t of this.refreshTimers.values()) clearTimeout(t);
     this.refreshTimers.clear();
+  }
+
+  /** Re-send config to every screen of an organizer (e.g. sponsor branding changed). */
+  pushOrg(orgId: string) {
+    const ds = this.ctx.db.prepare('SELECT id FROM display_devices WHERE org_id = ?').all(orgId) as any[];
+    for (const d of ds) this.push(d.id);
   }
 
   scheduleOrgRefresh(orgId: string) {

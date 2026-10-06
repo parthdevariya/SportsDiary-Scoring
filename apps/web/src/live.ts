@@ -4,6 +4,7 @@ import { Realtime } from './lib/rt.ts';
 import { toast } from './lib/api.ts';
 import { LANGS, getLang, setLang, t } from './lib/i18n.ts';
 import { logo } from './lib/brand.ts';
+import { beacon } from './lib/sp.ts';
 
 const app = document.getElementById('app')!;
 const [kind, raw] = location.pathname.split('/').filter(Boolean);
@@ -51,7 +52,9 @@ function renderMatch() {
   document.title = `${d.sides[0].name} ${d.sides[0].score}–${d.sides[1].score} ${d.sides[1].name}`;
   app.innerHTML = `
     <header class="live-top"><a class="logo-link" href="/">${logo()}</a>${detail.organization ? `<span class="org">${esc(detail.organization)}</span>` : ''}${langPicker()}</header>
+    ${titleStrip(detail.sponsorship)}
     <section id="board" class="live-board"></section>
+    ${sponsorStrip(detail.sponsorship)}
     <section class="share" aria-label="Share">
       <a class="btn" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}">WhatsApp</a>
       <a class="btn" target="_blank" rel="noopener" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}">X</a>
@@ -66,6 +69,29 @@ function renderMatch() {
     </div>
     ${detail.tournamentCode ? `<p class="crumb"><a href="/t/${esc(detail.tournamentCode)}">${esc(detail.tournament)} — standings and fixtures</a></p>` : ''}`;
   renderBoard(document.getElementById('board')!, detail, 'page');
+  reportShown('live');
+}
+
+// ------------------------------------------------------------------ sponsors (paid placements, measured)
+const reported = new Set<string>();
+function reportShown(page: string) {
+  const ids = Array.from(app.querySelectorAll<HTMLElement>('[data-pl]')).map((el) => el.dataset.pl!).filter((x) => !reported.has(x));
+  ids.forEach((x) => reported.add(x));
+  beacon(ids, page);
+}
+const spLink = (p: any, inner: string) => (p.link ? `<a href="${esc(p.link)}" target="_blank" rel="sponsored noopener" data-pl="${esc(p.id)}">${inner}</a>` : `<span data-pl="${esc(p.id)}">${inner}</span>`);
+const spMark = (p: any) => (p.logo ? `<img src="${esc(p.logo)}" alt="${esc(p.sponsor)}" loading="lazy">` : `<b>${esc(p.sponsor)}</b>`);
+function titleStrip(b: any) {
+  return b?.title ? `<p class="sp-presented">${esc(t('presentedBy'))} ${spLink(b.title, spMark(b.title))}</p>` : '';
+}
+function sponsorStrip(b: any, wall = false) {
+  if (!b) return '';
+  const seen = new Set<string>();
+  const logos = (wall ? b.wall : b.live ?? []).filter((p: any) => !seen.has(p.sponsor) && seen.add(p.sponsor));
+  const banners = b.banners ?? [];
+  if (!logos.length && !banners.length) return '';
+  return `<section class="sp-strip" aria-label="${esc(t('sponsorsLabel'))}">${logos.length ? `<h2>${esc(wall ? t('sponsors') : t('sponsoredBy'))}</h2><div class="sp-logos">${logos.map((p: any) => spLink(p, spMark(p))).join('')}</div>` : ''}
+    ${banners.slice(0, 2).map((p: any) => (p.banner ? spLink(p, `<img class="sp-web-banner" src="${esc(p.banner)}" alt="${esc(p.sponsor)}" loading="lazy">`) : '')).join('')}</section>`;
 }
 
 function timelineHtml(items: any[]) {
@@ -102,13 +128,16 @@ function renderTournament() {
   app.innerHTML = `
     <header class="live-top"><a class="logo-link" href="/">${logo()}</a>${langPicker()}</header>
     <h1 class="t-name">${esc(tour.name)}</h1>
+    ${titleStrip(tour.sponsorship)}
     ${groups.map((g) => `<section class="stats"><h2>${g.group ? `Group ${esc(g.group)}` : esc(t('standings'))}</h2>
       <table class="standings"><thead><tr><th></th><th></th><th>${t('played')}</th><th>${t('won')}</th><th>${t('lost')}</th><th>+/−</th><th>${t('pts')}</th></tr></thead>
       <tbody>${g.rows.map((r: any, i: number) => `<tr><td>${i + 1}</td><td class="nm">${esc(r.name)}</td><td>${r.played}</td><td>${r.won}</td><td>${r.lost}</td><td>${r.diff}</td><td class="pts">${r.points}</td></tr>`).join('')}</tbody></table></section>`).join('')}
     ${[...byRound.entries()].map(([k, ms]) => `<section class="fixtures-block"><h2>${esc(k)}</h2><ul class="fixture-links">${ms.map((m) => {
       const d = m.display;
       return `<li><a href="/live/${esc(m.code)}" class="status-${esc(m.status)}"><span>${esc(d.sides[0].name)}</span><strong>${m.status === 'scheduled' ? t('vs') : `${esc(d.sides[0].score)}–${esc(d.sides[1].score)}`}</strong><span>${esc(d.sides[1].name)}</span><small>${m.status === 'live' ? t('live') : esc(m.surface ?? '')}</small></a></li>`;
-    }).join('')}</ul></section>`).join('')}`;
+    }).join('')}</ul></section>`).join('')}
+    ${sponsorStrip(tour.sponsorship, true)}`;
+  reportShown('tournament');
 }
 
 rt.on((m) => {

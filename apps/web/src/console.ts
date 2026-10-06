@@ -4,6 +4,7 @@ import { boardHtml, esc, startClockTicker } from './lib/board.ts';
 import { Realtime } from './lib/rt.ts';
 import { openCastSheet } from './lib/cast.ts';
 import { logo } from './lib/brand.ts';
+import { pageSponsorships } from './console-sponsorship.ts';
 
 const app = document.getElementById('app')!;
 const params = new URLSearchParams(location.search);
@@ -57,7 +58,7 @@ function renderAuth(mode: 'login' | 'register' = 'login') {
 
 // ------------------------------------------------------------------ shell
 const NAV = [
-  ['live', 'Live now'], ['matches', 'Matches'], ['tournaments', 'Tournaments'], ['screens', 'Screens'], ['venues', 'Venues & courts'], ['people', 'Teams & people'],
+  ['live', 'Live now'], ['matches', 'Matches'], ['tournaments', 'Tournaments'], ['screens', 'Screens'], ['venues', 'Venues & courts'], ['people', 'Teams & people'], ['sponsorships', 'Sponsorships'],
 ] as const;
 
 function shell(active: string, body: string) {
@@ -88,6 +89,7 @@ async function route() {
     else if (page === 'screens') await pageScreens();
     else if (page === 'venues') await pageVenues();
     else if (page === 'people') await pagePeople();
+    else if (page === 'sponsorships' || page === 'deals') await pageSponsorships(shell, location.hash.slice(1));
     else await pageLive();
   } catch (e: any) {
     toast(e.message, 'error');

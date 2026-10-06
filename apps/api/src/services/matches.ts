@@ -271,9 +271,15 @@ export class MatchService {
   }
 
   /** Public projection: only what a spectator or TV may see. */
-  publicView(r: MatchRow) {
+  /** Extensions that add to the public projection (e.g. sponsor branding). Set by domain modules. */
+  publicExtensions: ((r: MatchRow) => Record<string, any> | null)[] = [];
+
+  publicView(r: MatchRow, opts: { extensions?: boolean } = {}) {
     const meta = this.meta(r);
-    return { code: r.public_code, sport: r.sport, discipline: r.discipline, status: r.status, scheduledAt: r.scheduled_at, ...meta, display: P(r.display) };
+    const base = { code: r.public_code, sport: r.sport, discipline: r.discipline, status: r.status, scheduledAt: r.scheduled_at, ...meta, display: P(r.display) };
+    if (opts.extensions === false) return base;
+    for (const ext of this.publicExtensions) Object.assign(base, ext(r) ?? {});
+    return base;
   }
 
   meta(r: MatchRow) {

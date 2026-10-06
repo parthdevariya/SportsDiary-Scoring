@@ -151,6 +151,7 @@ function currentViews(): any[] {
 }
 
 function onMatch(code: string) {
+  sponsorLayer();
   const views = currentViews();
   const v = views[viewIndex % Math.max(1, views.length)];
   if (!v) return;
@@ -168,6 +169,11 @@ function onMatch(code: string) {
 }
 
 function render() {
+  renderMain();
+  sponsorLayer();
+}
+
+function renderMain() {
   const cfg = state.config;
   if (path[0] === 'tv' && !path[1] && cfg && !cfg.device.paired) return renderPairing(cfg.device.pairingCode);
   const views = currentViews();
@@ -241,7 +247,9 @@ function renderView(v: any) {
       return;
     }
     case 'sponsor': {
-      const sp = state.config?.sponsors ?? [];
+      const rot: any[] = branding()?.rotation ?? [];
+      const sp = rot.length ? rot.map((p: any) => ({ name: p.sponsor, logoUrl: p.logoDark ?? p.logo, id: p.id })) : state.config?.sponsors ?? [];
+      sp.forEach((s: any) => s.id && shown.add(s.id));
       app.innerHTML = `<section class="stage stage-sponsor"><h2>${esc(t('sponsors'))}</h2><div class="sponsors">${sp.map((s: any) => s.logoUrl ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name)}">` : `<span>${esc(s.name)}</span>`).join('')}</div></section>`;
       return;
     }
@@ -277,6 +285,132 @@ function renderPairing(code: string | null) {
   </section>`;
 }
 
+// ---------------------------------------------------------------- sponsor branding
+/**
+ * Paid placements arrive with the screen config (device mode) or inside the public match /
+ * tournament payload. Every placement actually rendered is reported with the next
+ * heartbeat; the server only credits placements it assigned to this screen.
+ */
+const shown = new Set<string>();
+let bugId: string | null = null;
+let titleId: string | null = null;
+let bugIdx = 0;
+let bugTimer: any = null;
+let fullTimer: any = null;
+let fullIdx = 0;
+const FULL_EVERY_S = Math.max(30, Number(params.get('sponsorEvery') ?? 180));
+const FULL_FOR_S = 8;
+
+function currentMatch(): any | null {
+  const v = currentViews()[viewIndex % Math.max(1, currentViews().length)];
+  return v && v.kind === 'match' ? state.matches[v.match] ?? null : null;
+}
+
+function branding(): any | null {
+  if (path[0] === 'tv' && path[1] === 't') return state.tournaments[path[2]?.toUpperCase()]?.sponsorship ?? null;
+  if (path[0] === 'overlay' || (path[0] === 'tv' && path[1] === 'm')) return state.matches[path[2]?.toUpperCase()]?.sponsorship ?? null;
+  // device mode: screen-level placements, plus moment slots from the match on screen
+  const b = state.config?.branding ?? null;
+  const m = currentMatch()?.sponsorship;
+  if (!b) return m ?? null;
+  return m ? Object.assign({}, b, { moment: m.moment, potmPlayer: m.potmPlayer }) : b;
+}
+
+function layerEl(id: string): HTMLElement {
+  let el = document.getElementById(id);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = id;
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+const spImg = (p: any, dark = true) => (dark ? p.logoDark || p.logo : p.logo || p.logoDark);
+const spMark = (p: any) => (spImg(p) ? `<img src="${esc(spImg(p))}" alt="${esc(p.sponsor)}">` : `<b>${esc(p.sponsor)}</b>`);
+
+function sponsorLayer() {
+  const b = branding();
+  const pairing = path[0] === 'tv' && !path[1] && state.config && !state.config.device.paired;
+  if (!b || pairing) {
+    ['sp-bug', 'sp-title', 'sp-moment'].forEach((x) => document.getElementById(x)?.remove());
+    bugId = titleId = null;
+    clearInterval(bugTimer);
+    bugTimer = null;
+    return;
+  }
+  // presented-by strip (naming rights)
+  const tt = b.title;
+  if (tt && !overlay) {
+    titleId = tt.id;
+    const el = layerEl('sp-title');
+    el.innerHTML = `<span>${esc(t('presentedBy'))}</span>${spMark(tt)}`;
+  } else {
+    titleId = null;
+    document.getElementById('sp-title')?.remove();
+  }
+  // persistent corner logo (overlay mode uses broadcast placements)
+  const bugs: any[] = (overlay ? b.overlay : b.logos)?.length ? (overlay ? b.overlay : b.logos) : [];
+  if (bugs.length) {
+    const draw = () => {
+      const p = bugs[bugIdx % bugs.length];
+      bugId = p.id;
+      shown.add(p.id);
+      const el = layerEl('sp-bug');
+      el.className = overlay ? 'sp-bug sp-bug-overlay' : 'sp-bug';
+      const qr = !overlay && b.qr?.length && bugIdx % 3 === 2 ? b.qr[0] : null;
+      if (qr && qr.qr) {
+        shown.add(qr.id);
+        el.innerHTML = `<img class="sp-qr" src="/api/qr?data=${encodeURIComponent(location.origin + qr.qr)}" alt=""><span>${esc(qr.sponsor)}</span>`;
+      } else el.innerHTML = `<span>${esc(t('sponsoredBy'))}</span>${spMark(p)}`;
+    };
+    draw();
+    if (!bugTimer && bugs.length + (b.qr?.length ? 1 : 0) > 1) bugTimer = setInterval(() => ((bugIdx += 1), sponsorLayer()), 12000);
+  } else {
+    bugId = null;
+    document.getElementById('sp-bug')?.remove();
+  }
+  // moment slots: match sponsor, timeout, break, player of the match
+  const m = b.moment;
+  const slot = m === 'timeout' ? b.timeout : m === 'break' ? b.break : m === 'pre' ? b.matchSponsor : m === 'post' ? b.potm : null;
+  const onMatchView = path[0] === 'overlay' || path[1] === 'm' || !!currentMatch();
+  if (slot && onMatchView) {
+    shown.add(slot.id);
+    const label = m === 'timeout' ? t('timeoutBy') : m === 'break' ? t('poweredBy') : m === 'pre' ? t('matchSponsor') : `${t('potm')}${b.potmPlayer ? `: ${b.potmPlayer}` : ''} — ${t('presentedBy')}`;
+    const el = layerEl('sp-moment');
+    el.className = `sp-moment moment-${m}`;
+    el.innerHTML = `<span>${esc(label)}</span>${spMark(slot)}`;
+  } else document.getElementById('sp-moment')?.remove();
+  scheduleFull();
+}
+
+function scheduleFull() {
+  if (fullTimer || overlay) return;
+  fullTimer = setTimeout(() => {
+    fullTimer = null;
+    const b = branding();
+    const list: any[] = b?.fullscreen ?? [];
+    if (!list.length || document.getElementById('announce')) return scheduleFull();
+    const p = list[fullIdx++ % list.length];
+    shown.add(p.id);
+    const el = layerEl('sp-full');
+    const media = p.video ? `<video src="${esc(p.video)}" autoplay muted playsinline></video>` : p.banner ? `<img class="sp-banner" src="${esc(p.banner)}" alt="">` : spImg(p, true) ? `<img class="sp-logo" src="${esc(spImg(p, true))}" alt="">` : '';
+    el.className = 'sp-full on';
+    el.innerHTML = `<p>${esc(currentMatch() || path[1] === 'm' ? t('broughtToYouMatch') : t('broughtToYou'))}</p>${media}<h2>${esc(p.sponsor)}</h2>${p.copy ? `<p class="copy">${esc(p.copy)}</p>` : ''}`;
+    const v = el.querySelector('video') as HTMLVideoElement | null;
+    const end = () => {
+      el.className = 'sp-full';
+      setTimeout(() => el.remove(), 600);
+      scheduleFull();
+    };
+    if (v) {
+      v.onended = end;
+      v.onerror = end;
+      setTimeout(() => !v.ended && end(), 31000);
+    } else setTimeout(end, FULL_FOR_S * 1000);
+  }, FULL_EVERY_S * 1000);
+}
+
 // ---------------------------------------------------------------- boot
 async function registerDevice() {
   try {
@@ -308,7 +442,12 @@ if (path[0] === 'tv' && !path[1]) {
   }
   if (store.get('arena.tv.device')) hello();
   else registerDevice();
-  setInterval(() => rt.raw({ t: 'display.hb', lastUpdate, resolution: `${screen.width}x${screen.height}` }), 15000);
+  setInterval(() => {
+    if (bugId) shown.add(bugId);
+    if (titleId) shown.add(titleId);
+    rt.raw({ t: 'display.hb', lastUpdate, resolution: `${screen.width}x${screen.height}`, shown: Array.from(shown).slice(0, 50) });
+    shown.clear();
+  }, 15000);
 } else {
   const cached = store.get<typeof state>(`arena.tv.cache.${location.pathname}`);
   if (cached) state = cached;

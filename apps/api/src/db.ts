@@ -95,9 +95,26 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 export type DB = DatabaseSync;
 
+/** Add a column if it is missing (SQLite has no ADD COLUMN IF NOT EXISTS). */
+export function ensureColumn(db: DB, table: string, column: string, ddl: string) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as any[];
+  if (!cols.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+}
+
 export function openDb(file = process.env.DB_FILE ?? 'sportsdiary.db'): DB {
   const db = new DatabaseSync(file);
   db.exec(SCHEMA);
+  // identity extensions (shared by organizers, sponsors and platform admins)
+  ensureColumn(db, 'users', 'phone', 'TEXT');
+  ensureColumn(db, 'users', 'email_verified', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn(db, 'users', 'phone_verified', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn(db, 'users', 'google_sub', 'TEXT');
+  ensureColumn(db, 'users', 'apple_sub', 'TEXT');
+  ensureColumn(db, 'users', 'platform_admin', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn(db, 'users', 'status', "TEXT NOT NULL DEFAULT 'active'");
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_phone ON users(phone) WHERE phone IS NOT NULL');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_google ON users(google_sub) WHERE google_sub IS NOT NULL');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_apple ON users(apple_sub) WHERE apple_sub IS NOT NULL');
   return db;
 }
 

@@ -14,23 +14,34 @@ import { MatchService } from './services/matches.ts';
 import { TournamentService } from './services/tournaments.ts';
 import { DisplayService } from './services/displays.ts';
 import { buildFacts, templateProvider, playerOfTheMatch, shareCardSvg } from './services/insights.ts';
+import { registerSponsorship, type SponsorshipModule } from './sponsorship/index.ts';
 
 const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/public');
 
-interface Req {
+export interface Req {
   method: string;
   path: string;
   query: URLSearchParams;
   params: Record<string, string>;
   body: any;
+  /** Exact request bytes (webhook signatures are computed over these, never over re-serialised JSON). */
+  rawBody: Buffer;
   user: AuthUser | null;
   ip: string;
   headers: http.IncomingHttpHeaders;
   token: string | null;
+  /** Set on sponsor routes: the sponsor account acted on and the caller's role in it. */
+  sponsor?: { accountId: string; role: string };
 }
-type Raw = { __raw: true; status?: number; type: string; body: string | Buffer; headers?: Record<string, string> };
-type Handler = (r: Req) => any | Promise<any>;
-interface Route { method: string; re: RegExp; keys: string[]; perm?: Permission | 'auth' | 'public'; h: Handler }
+export type Raw = { __raw: true; status?: number; type: string; body: string | Buffer; headers?: Record<string, string> };
+export type Handler = (r: Req) => any | Promise<any>;
+/**
+ * Route guards: 'public' | 'auth' (organizer signed in) | an organizer Permission |
+ * 'user' (any signed-in person) | 'platform' (platform admin) | 'sp:<perm>' (sponsor account permission).
+ */
+export type Guard = Permission | 'auth' | 'public' | 'user' | 'platform' | `sp:${string}`;
+interface Route { method: string; re: RegExp; keys: string[]; perm?: Guard; h: Handler; maxBody: number }
+export type RouteFn = (method: string, pattern: string, perm: Guard, h: Handler, opts?: { maxBody?: number }) => void;
 
 export interface App {
   server: http.Server;
@@ -38,6 +49,7 @@ export interface App {
   matches: MatchService;
   tournaments: TournamentService;
   displays: DisplayService;
+  sponsorship: SponsorshipModule;
   close(): Promise<void>;
 }
 
@@ -55,10 +67,10 @@ export function createApp(opts: { dbFile?: string; rateLimitScale?: number } = {
   const writeLimiter = new RateLimiter(60 * k, 30 * k);
   const publicLimiter = new RateLimiter(120 * k, 60 * k);
 
-  const route = (method: string, pattern: string, perm: Route['perm'], h: Handler) => {
+  const route: RouteFn = (method, pattern, perm, h, opts = {}) => {
     const keys: string[] = [];
     const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '/?$');
-    routes.push({ method, re, keys, perm, h });
+    routes.push({ method, re, keys, perm, h, maxBody: opts.maxBody ?? 1_000_000 });
   };
   const raw = (type: string, body: string | Buffer, status = 200, headers?: Record<string, string>): Raw => ({ __raw: true, type, body, status, headers });
 
@@ -93,7 +105,7 @@ export function createApp(opts: { dbFile?: string; rateLimitScale?: number } = {
     return { token: createSession(db, u.id), user: userFromTokenSafe(u.id) };
   });
 
-  route('POST', '/api/auth/logout', 'auth', (r) => {
+  route('POST', '/api/auth/logout', 'user', (r) => {
     if (r.token) revokeSession(db, r.token);
     return { ok: true };
   });
@@ -342,11 +354,16 @@ export function createApp(opts: { dbFile?: string; rateLimitScale?: number } = {
   });
   route('GET', '/api/health', 'public', () => ({ ok: true, time: now(), sockets: hub.clients.size }));
 
+  // ------------------------------------------------------------------ sponsorship marketplace (own domain module)
+  const sponsorship = registerSponsorship({ route, raw, ctx, matches, tournaments, displays, rateLimitScale: k, dbFile: opts.dbFile });
+
   // ------------------------------------------------------------------ static web app
   const PAGES: [RegExp, string][] = [
     [/^\/$/, 'home.html'], [/^\/console(\/.*)?$/, 'index.html'], [/^\/pair$/, 'index.html'],
     [/^\/score\/[^/]+$/, 'score.html'], [/^\/tv(\/.*)?$/, 'tv.html'], [/^\/overlay\/.+$/, 'tv.html'],
     [/^\/live\/[^/]+$/, 'live.html'], [/^\/t\/[^/]+$/, 'live.html'],
+    [/^\/sponsor(\/[^/]+)?$/, 'sponsor.html'], [/^\/sponsors$/, 'market.html'], [/^\/sponsorships(\/[^/]+)?$/, 'market.html'],
+    [/^\/admin$/, 'admin.html'], [/^\/pay\/sandbox\/[^/]+$/, 'pay.html'],
   ];
   const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.json': 'application/json', '.ico': 'image/x-icon' };
   async function serveStatic(p: string): Promise<Raw | null> {
@@ -367,7 +384,10 @@ export function createApp(opts: { dbFile?: string; rateLimitScale?: number } = {
     const headers: Record<string, string> = {
       'x-content-type-options': 'nosniff',
       'referrer-policy': 'strict-origin-when-cross-origin',
-      'content-security-policy': `default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ws: wss:; frame-ancestors ${embeddable ? '*' : "'none'"}`,
+      // Payment and sign-in providers are allowed only on the pages that use them.
+      'content-security-policy': /^\/(sponsor|sponsorships)/.test(url.pathname)
+        ? `default-src 'self'; script-src 'self' https://checkout.razorpay.com https://accounts.google.com https://appleid.cdn-apple.com https://sdk.cashfree.com; frame-src https://api.razorpay.com https://checkout.razorpay.com https://accounts.google.com https://appleid.apple.com https://sdk.cashfree.com https://api.cashfree.com https://sandbox.cashfree.com; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ws: wss: https://lumberjack.razorpay.com https://accounts.google.com https://appleid.apple.com https://api.cashfree.com https://sandbox.cashfree.com; frame-ancestors 'none'`
+        : `default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ws: wss:; frame-ancestors ${embeddable ? '*' : "'none'"}`,
     };
     const reply = (status: number, body: any, extra: Record<string, string> = {}) => {
       if (body && body.__raw) {
@@ -393,19 +413,29 @@ export function createApp(opts: { dbFile?: string; rateLimitScale?: number } = {
       const auth = req.headers.authorization;
       const tok = auth?.startsWith('Bearer ') ? auth.slice(7) : null;
       const user = userFromToken(db, tok);
-      const perm = match.rt.perm;
+      const perm = match.rt.perm!;
+      let sponsorCtx: Req['sponsor'];
       if (perm !== 'public') {
         if (!user) throw new HttpError(401, 'Sign in required', 'UNAUTHORIZED');
-        if (perm !== 'auth' && !can(user, perm!)) throw new HttpError(403, 'You do not have permission for this action', 'FORBIDDEN');
+        if (perm === 'user') {
+          /* any signed-in person */
+        } else if (perm === 'platform') {
+          if (!user.platformAdmin) throw new HttpError(403, 'Platform administrators only', 'FORBIDDEN');
+        } else if (perm.startsWith('sp:')) {
+          sponsorCtx = sponsorship.authorize(user, perm.slice(3), (req.headers['x-sponsor-account'] as string) || url.searchParams.get('account'));
+        } else if (perm === 'auth') {
+          if (!user.orgId) throw new HttpError(403, 'An organizer account is required', 'FORBIDDEN');
+        } else if (!can(user, perm as Permission)) throw new HttpError(403, 'You do not have permission for this action', 'FORBIDDEN');
       }
       let body: any = undefined;
-      if (method !== 'GET' && method !== 'HEAD') body = await readJson(req);
+      let rawBody: Buffer = Buffer.alloc(0);
+      if (method !== 'GET' && method !== 'HEAD') ({ body, rawBody } = await readBody(req, match.rt.maxBody));
       const params: Record<string, string> = {};
       match.rt.keys.forEach((k, i) => (params[k] = decodeURIComponent(match.m![i + 1])));
-      const out = await match.rt.h({ method, path: url.pathname, query: url.searchParams, params, body, user, ip, headers: req.headers, token: tok });
+      const out = await match.rt.h({ method, path: url.pathname, query: url.searchParams, params, body, rawBody, user, ip, headers: req.headers, token: tok, sponsor: sponsorCtx });
       reply(200, out ?? { ok: true });
     } catch (e: any) {
-      if (e instanceof HttpError) return reply(e.status, { error: { code: e.code, message: e.message, details: e.details } });
+      if (e instanceof HttpError) return reply(e.status, { error: { code: e.code, message: e.message, details: e.details } }, e.headers);
       console.error(e);
       reply(500, { error: { code: 'INTERNAL', message: 'Something went wrong' } });
     }
@@ -468,7 +498,11 @@ export function createApp(opts: { dbFile?: string; rateLimitScale?: number } = {
         return displays.attach(c, message, topics);
       }
       case 'display.hb':
-        if (c.deviceId) displays.heartbeat(c.deviceId, { lastUpdate: msg.lastUpdate, resolution: msg.resolution });
+        if (c.deviceId) {
+          displays.heartbeat(c.deviceId, { lastUpdate: msg.lastUpdate, resolution: msg.resolution });
+          // Sponsor exposure is measured server-side from what the screen was told to show.
+          sponsorship.recordDisplayExposure(c.deviceId, Array.isArray(msg.shown) ? msg.shown.slice(0, 50).map(String) : null);
+        }
         return send(c, { t: 'display.hb.ack' });
     }
   }
@@ -490,10 +524,11 @@ export function createApp(opts: { dbFile?: string; rateLimitScale?: number } = {
   }, 25_000);
 
   return {
-    server, ctx, matches, tournaments, displays,
+    server, ctx, matches, tournaments, displays, sponsorship,
     async close() {
       clearInterval(ping);
       displays.dispose();
+      sponsorship.dispose();
       for (const c of hub.clients) c.ws.terminate();
       wss.close();
       await new Promise<void>((r) => server.close(() => r()));
@@ -502,17 +537,21 @@ export function createApp(opts: { dbFile?: string; rateLimitScale?: number } = {
   };
 }
 
-async function readJson(req: http.IncomingMessage): Promise<any> {
+async function readBody(req: http.IncomingMessage, max: number): Promise<{ body: any; rawBody: Buffer }> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const ch of req) {
     size += ch.length;
-    if (size > 1_000_000) throw new HttpError(413, 'Request body too large', 'TOO_LARGE');
+    if (size > max) throw new HttpError(413, 'Request body too large', 'TOO_LARGE');
     chunks.push(ch);
   }
-  if (!size) return {};
+  const rawBody = Buffer.concat(chunks);
+  if (!size) return { body: {}, rawBody };
+  const type = String(req.headers['content-type'] ?? '');
+  if (type.includes('application/x-www-form-urlencoded')) return { body: Object.fromEntries(new URLSearchParams(rawBody.toString('utf8'))), rawBody };
+  if (type && !type.includes('json') && !type.startsWith('text/plain')) return { body: {}, rawBody }; // binary upload
   try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    return { body: JSON.parse(rawBody.toString('utf8')), rawBody };
   } catch {
     throw new HttpError(400, 'Invalid JSON', 'VALIDATION');
   }

@@ -2,10 +2,11 @@ import { randomBytes, scryptSync, timingSafeEqual, createHash } from 'node:crypt
 import type { DB } from './db.ts';
 import { now } from './db.ts';
 
+/** Organizer-side roles (a user's role inside their organizer tenant). */
 export const ROLES = [
   'super_admin', 'org_admin', 'tournament_admin', 'scorer', 'referee', 'umpire', 'coach', 'team_manager', 'player', 'spectator',
 ] as const;
-export type Role = (typeof ROLES)[number];
+export type Role = (typeof ROLES)[number] | 'member';
 
 export type Permission =
   | 'org.manage' | 'user.manage' | 'venue.manage' | 'team.manage' | 'player.manage' | 'tournament.manage'
@@ -24,6 +25,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   team_manager: ['team.manage', 'player.manage', 'stats.view'],
   player: ['stats.view'],
   spectator: ['stats.view'],
+  // A person with no organizer role (e.g. a sponsor-only account). Holds no organizer permissions.
+  member: [],
 };
 
 /** Roles that may only score matches explicitly assigned to them. */
@@ -31,14 +34,16 @@ export const ASSIGNMENT_SCOPED: Role[] = ['scorer', 'referee', 'umpire'];
 
 export interface AuthUser {
   id: string;
+  /** Organizer tenant. Empty for sponsor-only people; they never pass organizer permission checks. */
   orgId: string;
   email: string;
   name: string;
   role: Role;
+  platformAdmin?: boolean;
 }
 
 export function can(user: AuthUser | null, perm: Permission): boolean {
-  return !!user && ROLE_PERMISSIONS[user.role]?.includes(perm);
+  return !!user && !!user.orgId && !!ROLE_PERMISSIONS[user.role]?.includes(perm);
 }
 
 export function hashPassword(pw: string): string {
@@ -71,10 +76,10 @@ export function createSession(db: DB, userId: string): string {
 export function userFromToken(db: DB, t: string | undefined | null): AuthUser | null {
   if (!t) return null;
   const row = db
-    .prepare('SELECT u.id, u.org_id, u.email, u.name, u.role, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?')
+    .prepare('SELECT u.id, u.org_id, u.email, u.name, u.role, u.platform_admin, u.status, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?')
     .get(sha256(t)) as any;
-  if (!row || row.expires_at < now()) return null;
-  return { id: row.id, orgId: row.org_id, email: row.email, name: row.name, role: row.role };
+  if (!row || row.expires_at < now() || row.status === 'suspended') return null;
+  return { id: row.id, orgId: row.org_id ?? '', email: row.email, name: row.name, role: row.role, platformAdmin: !!row.platform_admin };
 }
 
 export function revokeSession(db: DB, t: string) {

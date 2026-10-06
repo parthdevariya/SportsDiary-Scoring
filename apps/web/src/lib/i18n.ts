@@ -10,6 +10,8 @@ const STRINGS = {
     pairExpires: 'Code refreshes automatically', idle: 'Waiting for a match to be assigned', standings: 'Standings', results: 'Results',
     noCourtMatch: 'No match on this court', sponsors: 'With thanks to our partners', played: 'P', won: 'W', drawn: 'D', lost: 'L', pts: 'Pts',
     scanToWatch: 'Scan to follow live',
+    presentedBy: 'presented by', sponsoredBy: 'Sponsored by', poweredBy: 'Powered by', timeoutBy: 'Timeout brought to you by', matchSponsor: "Today's match sponsor",
+    potm: 'Player of the Match', broughtToYouMatch: 'This match is brought to you by', broughtToYou: 'Brought to you by', sponsorsLabel: 'Sponsors',
   },
   hi: {
     live: 'लाइव', final: 'अंतिम', upcoming: 'अगला मैच', vs: 'बनाम', serving: 'सर्विस', court: 'कोर्ट',
@@ -18,6 +20,8 @@ const STRINGS = {
     pairExpires: 'कोड अपने आप बदलता है', idle: 'मैच असाइन होने की प्रतीक्षा', standings: 'अंक तालिका', results: 'परिणाम',
     noCourtMatch: 'इस कोर्ट पर कोई मैच नहीं', sponsors: 'हमारे प्रायोजक', played: 'खे', won: 'जी', drawn: 'ड्रॉ', lost: 'हा', pts: 'अंक',
     scanToWatch: 'लाइव देखने के लिए स्कैन करें',
+    presentedBy: 'प्रस्तुतकर्ता', sponsoredBy: 'प्रायोजक', poweredBy: 'पावर्ड बाय', timeoutBy: 'टाइमआउट प्रायोजक', matchSponsor: 'आज के मैच के प्रायोजक',
+    potm: 'प्लेयर ऑफ़ द मैच', broughtToYouMatch: 'यह मैच आपके लिए लाए हैं', broughtToYou: 'आपके लिए लाए हैं', sponsorsLabel: 'प्रायोजक',
   },
   gu: {
     live: 'લાઇવ', final: 'અંતિમ', upcoming: 'આગળની મેચ', vs: 'વિરુદ્ધ', serving: 'સર્વિસ', court: 'કોર્ટ',
@@ -26,6 +30,8 @@ const STRINGS = {
     pairExpires: 'કોડ આપમેળે બદલાય છે', idle: 'મેચ સોંપાય તેની રાહ', standings: 'ગુણ તાલિકા', results: 'પરિણામો',
     noCourtMatch: 'આ કોર્ટ પર કોઈ મેચ નથી', sponsors: 'અમારા પ્રાયોજકો', played: 'રમ્યા', won: 'જીત', drawn: 'ડ્રો', lost: 'હાર', pts: 'ગુણ',
     scanToWatch: 'લાઇવ જોવા સ્કેન કરો',
+    presentedBy: 'પ્રસ્તુતકર્તા', sponsoredBy: 'પ્રાયોજક', poweredBy: 'પાવર્ડ બાય', timeoutBy: 'ટાઇમઆઉટ પ્રાયોજક', matchSponsor: 'આજની મેચના પ્રાયોજક',
+    potm: 'પ્લેયર ઓફ ધ મેચ', broughtToYouMatch: 'આ મેચ આપના માટે લાવ્યા છે', broughtToYou: 'આપના માટે લાવ્યા છે', sponsorsLabel: 'પ્રાયોજકો',
   },
 } as const;
 
