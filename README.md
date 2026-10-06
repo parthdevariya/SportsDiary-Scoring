@@ -2,19 +2,20 @@
 
 Sports Diary — universal multi-sport scoring, tournaments, live scores and big-screen displays.
 Football, cricket, badminton, table tennis, tennis, padel, pickleball, volleyball, basketball, snooker and billiards — one engine.
+Plus a **sponsorship marketplace**: sponsors buy tournament, venue, match and broadcast sponsorships online, and their branding goes live on screens and live pages automatically, with measured exposure. See [SPONSORSHIP.md](SPONSORSHIP.md).
 
 ## Run it
 
 ```bash
 npm install
-npm run seed      # demo data: 21 orgs, 60 tournaments, 1,200+ players, live matches in every sport
+npm run seed      # demo data: 21 orgs, 60 tournaments, 1,200+ players, live matches, 18 sponsorship listings, 6 sponsors
 npm start         # http://localhost:8080
-npm test          # 118 tests: every sport, offline sync, TV sync/reconnect, 10 TVs x 10 matches, security
+npm test          # 134 tests: every sport, offline sync, TV sync, security, sponsorship payments/webhooks/RBAC
 ```
 
 Requires Node 22.5+ (uses the built-in `node:sqlite`).
 
-**Demo logins** (password `diary-demo-2026`): `demo@sportsdiary.app` (organization admin), `scorer@sportsdiary.app` (scorer).
+**Demo logins** (password `diary-demo-2026`): `demo@sportsdiary.app` (organization admin → `/console`), `scorer@sportsdiary.app` (scorer), `sponsor@sportsdiary.app` (sponsor → `/sponsor`), `admin@sportsdiary.app` (platform admin → `/admin`). Run with `PLATFORM_ADMIN_EMAILS=admin@sportsdiary.app` in production-like setups.
 
 ## Try the big screen
 

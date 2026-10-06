@@ -119,7 +119,8 @@ SCORER ──HTTP──► API ──tx──► match_events + read model
 packages/engine/        isomorphic rules: core/ sports/ tournament/ sim.ts
 apps/api/src/           app.ts (routes + WS), db.ts, auth.ts, realtime.ts, context.ts
   services/             matches, tournaments, displays, insights
-apps/web/src/           console.ts, score.ts, tv.ts, live.ts, lib/ (rt, board, cast, api, i18n)
+  sponsorship/          marketplace module: sponsors, assets, marketplace, orders, payments/, branding, analytics, recommend, deals, documents
+apps/web/src/           console.ts (+ console-sponsorship.ts), score.ts, tv.ts, live.ts, sponsor.ts, market.ts, admin.ts, pay.ts, lib/ (rt, board, cast, api, i18n, sp)
 apps/web/public/        html shells, styles.css, sw.js, manifest, built js/
 scripts/                seed.ts, build-web.mjs
 test/engine/            per-sport rules, core, tournament, fuzz (all 47 disciplines)
@@ -146,8 +147,9 @@ Target monorepo split when teams grow: `packages/engine`, `packages/realtime-cli
 | 24 | AI | 🟡 verified-facts layer, template summary, player of the match, citations. LLM provider, commentary and agent pending |
 | 25 | Social | 🟡 share links and SVG share card; PNG rendering pending (some apps reject SVG) |
 | 26 | Broadcasting | 🟡 OBS overlay URL; RTMP pending |
-| 27 | Billing | ⛔ not started |
-| 28–30 | Testing, security, performance | 🟡 118 tests (incl. fuzzing every discipline), OWASP basics, rate limits; load tests pending |
+| 27 | Billing | 🟡 sponsorship payments, invoices, refunds and payouts done (see SPONSORSHIP.md); organizer subscription plans pending |
+| S1–S10 | Sponsorship marketplace | ✅ auth & profiles, marketplace, packages & inventory, payments, activation, TV/live/broadcast branding, analytics, organizer dashboard, AI matching, auctions & negotiation — see SPONSORSHIP.md |
+| 28–30 | Testing, security, performance | 🟡 134 tests (incl. fuzzing every discipline), OWASP basics, rate limits; load tests pending |
 | 31 | Production deployment | ⛔ Dockerfile and CI pending |
 
 **Recommended next steps, in order:** PostgreSQL + Redis adapters (needed for more than one node) → group→knockout progression and Swiss → PNG share cards → LLM provider behind the existing `InsightProvider` → billing.
