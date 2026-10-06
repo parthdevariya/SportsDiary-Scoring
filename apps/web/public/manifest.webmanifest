@@ -1,0 +1,10 @@
+{
+  "name": "ArenaOS",
+  "short_name": "ArenaOS",
+  "description": "Score any sport and put it on every screen.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#081320",
+  "theme_color": "#0F1D2E",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
