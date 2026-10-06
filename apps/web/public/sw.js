@@ -1,8 +1,8 @@
 // App-shell service worker: screens and scorers boot with no network.
 // Pages: network-first (fresh deploys win), falling back to cache. Assets: stale-while-revalidate.
 // Never caches /api or /ws — live data always comes from the server or the app's own local store.
-const CACHE = 'arenaos-shell-v1';
-const SHELL = ['/', '/tv', '/score/_', '/live/_', '/styles.css', '/js/console.js', '/js/tv.js', '/js/score.js', '/js/live.js', '/icon.svg', '/manifest.webmanifest'];
+const CACHE = 'sportsdiary-shell-v2';
+const SHELL = ['/', '/tv', '/score/_', '/live/_', '/styles.css', '/js/console.js', '/js/tv.js', '/js/score.js', '/js/live.js', '/icon.svg', '/manifest.webmanifest', '/brand/sports-diary.svg', '/brand/sports-diary-on-dark.svg'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

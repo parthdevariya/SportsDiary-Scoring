@@ -1,5 +1,5 @@
 /**
- * @arenaos/engine — isomorphic (Node + browser) scoring engine.
+ * @sports-diary/engine — isomorphic (Node + browser) scoring engine.
  * The same code runs on the server (authoritative) and on scoring devices (offline).
  */
 import { registerSport, hasSport } from './core/registry.ts';

@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 export type DB = DatabaseSync;
 
-export function openDb(file = process.env.DB_FILE ?? 'arenaos.db'): DB {
+export function openDb(file = process.env.DB_FILE ?? 'sportsdiary.db'): DB {
   const db = new DatabaseSync(file);
   db.exec(SCHEMA);
   return db;

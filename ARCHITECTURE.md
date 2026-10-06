@@ -1,4 +1,4 @@
-# ArenaOS — Architecture
+# Sports Diary — Architecture
 
 One platform, 11 sports, one scoring engine, real-time everywhere, one tap to the big screen.
 

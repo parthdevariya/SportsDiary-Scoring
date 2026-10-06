@@ -10,6 +10,19 @@
 import type { MatchAggregate } from '../../../../packages/engine/src/index.ts';
 import type { MatchRow } from './matches.ts';
 import { P } from '../db.ts';
+import { readFileSync } from 'node:fs';
+
+/** The on-dark Sports Diary logo, inlined into share cards so they render anywhere. */
+const LOGO = (() => {
+  try {
+    const svg = readFileSync(new URL('../../../web/public/brand/sports-diary-on-dark.svg', import.meta.url), 'utf8');
+    const vb = svg.match(/viewBox="([^"]+)"/)?.[1] ?? '0 0 381 83';
+    const inner = svg.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+    return { vb, inner };
+  } catch {
+    return null;
+  }
+})();
 
 export interface Fact {
   claim: string;
@@ -92,19 +105,20 @@ export function shareCardSvg(view: any): string {
   const badge = live ? 'LIVE' : view.status === 'completed' ? 'FINAL' : 'UPCOMING';
   const fit = (s: string, max: number) => (s.length > max ? s.slice(0, max - 1) + '…' : s);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#081320"/><stop offset="1" stop-color="#0F1D2E"/></linearGradient></defs>
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#031A33"/><stop offset="1" stop-color="#062547"/></linearGradient></defs>
 <rect width="1200" height="630" fill="url(#g)"/>
-<rect x="0" y="0" width="1200" height="8" fill="#FFB020"/>
-<text x="60" y="92" font-family="Inter,Arial,sans-serif" font-size="30" font-weight="700" fill="#7D8FA3" letter-spacing="4">${esc(fit((view.tournament ?? d.sportName).toUpperCase(), 48))}</text>
-<rect x="${1140 - badge.length * 22 - 40}" y="56" rx="8" width="${badge.length * 22 + 40}" height="50" fill="${live ? '#E5484D' : '#24364C'}"/>
+<rect x="0" y="0" width="1200" height="8" fill="#64C225"/>
+<text x="60" y="92" font-family="Inter,Arial,sans-serif" font-size="30" font-weight="700" fill="#93A6BD" letter-spacing="4">${esc(fit((view.tournament ?? d.sportName).toUpperCase(), 48))}</text>
+<rect x="${1140 - badge.length * 22 - 40}" y="56" rx="8" width="${badge.length * 22 + 40}" height="50" fill="${live ? '#E5484D' : '#1C4472'}"/>
 <text x="${1120 - badge.length * 11}" y="92" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="28" font-weight="800" fill="#fff" letter-spacing="3">${badge}</text>
 <text x="60" y="260" font-family="Inter,Arial,sans-serif" font-size="56" font-weight="800" fill="#fff">${esc(fit(a.name, 22))}</text>
 <text x="60" y="440" font-family="Inter,Arial,sans-serif" font-size="56" font-weight="800" fill="#fff">${esc(fit(b.name, 22))}</text>
-<text x="1140" y="285" text-anchor="end" font-family="Inter,Arial,sans-serif" font-size="140" font-weight="900" fill="${d.winner === 0 ? '#FFB020' : '#fff'}">${esc(a.score)}</text>
-<text x="1140" y="465" text-anchor="end" font-family="Inter,Arial,sans-serif" font-size="140" font-weight="900" fill="${d.winner === 1 ? '#FFB020' : '#fff'}">${esc(b.score)}</text>
-<line x1="60" y1="330" x2="1140" y2="330" stroke="#24364C" stroke-width="2"/>
-<text x="60" y="560" font-family="Inter,Arial,sans-serif" font-size="32" font-weight="600" fill="#FFB020">${esc(fit(d.resultText ?? [d.phase, d.headline].filter(Boolean).join(' · '), 60))}</text>
-<text x="1140" y="600" text-anchor="end" font-family="Inter,Arial,sans-serif" font-size="22" fill="#7D8FA3">${esc(view.organization ?? '')}</text>
+<text x="1140" y="285" text-anchor="end" font-family="Inter,Arial,sans-serif" font-size="140" font-weight="900" fill="${d.winner === 0 ? '#64C225' : '#fff'}">${esc(a.score)}</text>
+<text x="1140" y="465" text-anchor="end" font-family="Inter,Arial,sans-serif" font-size="140" font-weight="900" fill="${d.winner === 1 ? '#64C225' : '#fff'}">${esc(b.score)}</text>
+<line x1="60" y1="330" x2="1140" y2="330" stroke="#1C4472" stroke-width="2"/>
+<text x="60" y="530" font-family="Inter,Arial,sans-serif" font-size="32" font-weight="600" fill="#64C225">${esc(fit(d.resultText ?? [d.phase, d.headline].filter(Boolean).join(' · '), 60))}</text>
+${LOGO ? `<svg x="60" y="575" width="210" height="46" viewBox="${LOGO.vb}" preserveAspectRatio="xMinYMid meet">${LOGO.inner}</svg>` : ''}
+<text x="1140" y="606" text-anchor="end" font-family="Inter,Arial,sans-serif" font-size="22" fill="#93A6BD">${esc(view.organization ?? '')}</text>
 </svg>`;
 }
 

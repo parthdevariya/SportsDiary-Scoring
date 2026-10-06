@@ -4,8 +4,8 @@
  * (so standings, player stats and ratings are real), all produced through the same
  * services and rule engines the product uses — no hand-written scores.
  *
- *   npm run seed            (writes arenaos.db; DB_FILE overrides)
- * Demo login:  demo@arenaos.app / arena-demo-2026
+ *   npm run seed            (writes sportsdiary.db; DB_FILE overrides)
+ * Demo login:  demo@sportsdiary.app / diary-demo-2026
  */
 import { existsSync, rmSync } from 'node:fs';
 import { createApp } from '../apps/api/src/app.ts';
@@ -15,7 +15,7 @@ import { J, now } from '../apps/api/src/db.ts';
 import { MatchAggregate } from '../packages/engine/src/index.ts';
 import { simulate, rng } from '../packages/engine/src/sim.ts';
 
-const file = process.env.DB_FILE ?? 'arenaos.db';
+const file = process.env.DB_FILE ?? 'sportsdiary.db';
 for (const f of [file, `${file}-wal`, `${file}-shm`]) if (existsSync(f)) rmSync(f);
 const app = createApp({ dbFile: file });
 const { db } = app.ctx;
@@ -26,7 +26,7 @@ const FIRST = ['Aarav', 'Vivaan', 'Aditya', 'Vihaan', 'Arjun', 'Sai', 'Reyansh',
 const LAST = ['Shah', 'Patel', 'Mehta', 'Desai', 'Joshi', 'Iyer', 'Rao', 'Nair', 'Reddy', 'Kapoor', 'Malhotra', 'Singh', 'Gill', 'Chopra', 'Bose', 'Das', 'Banerjee', 'Kulkarni', 'Pandya', 'Trivedi', 'Bhatt', 'Parikh', 'Khan', 'Sheikh', 'Menon', 'Pillai', 'Verma', 'Gupta', 'Agarwal', 'Jain'];
 const CITIES = ['Ahmedabad', 'Sanand', 'Gandhinagar', 'Vadodara', 'Surat', 'Rajkot', 'Mumbai', 'Pune', 'Bengaluru', 'Hyderabad', 'Chennai', 'Delhi', 'Jaipur', 'Kochi', 'Kolkata'];
 const TEAM_WORDS = ['Strikers', 'Titans', 'Falcons', 'Royals', 'Warriors', 'Panthers', 'Chargers', 'Lions', 'Riders', 'Blasters', 'Kings', 'Rangers', 'Stallions', 'Sharks', 'Hawks', 'Tuskers'];
-const COLORS = ['#E5484D', '#2F7FE0', '#3FBF7F', '#FFB020', '#9B5DE5', '#00B8D9', '#F2711C', '#E83E8C'];
+const COLORS = ['#E5484D', '#2F7FE0', '#9B5DE5', '#00B8D9', '#F2711C', '#E83E8C', '#F4F6F8', '#14A3A3'];
 const ORG_NAMES = [
   'Riverside Sports Club', 'Sabarmati Sports Academy', 'Sanand Smashers Academy', 'Navrangpura Gymkhana', 'Gujarat University Athletics', 'Ahmedabad Corporate League',
   'Surat Shuttle Centre', 'Vadodara Table Tennis Hub', 'Baroda Cue Club', 'Rajkot Cricket Association', 'Pune Padel Club', 'Bengaluru Pickleball Collective',
@@ -43,7 +43,7 @@ function makeOrg(name: string, email?: string): AuthUser {
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   db.prepare('INSERT INTO organizations (id, name, slug, plan, branding, created_at) VALUES (?,?,?,?,?,?)').run(orgId, name, slug, pick(['free', 'starter', 'pro', 'enterprise']), J({}), now());
   db.prepare('INSERT INTO users (id, org_id, email, name, password_hash, role, created_at) VALUES (?,?,?,?,?,?,?)').run(
-    userId, orgId, email ?? `admin@${slug}.example`, `${pick(FIRST)} ${pick(LAST)}`, hashPassword(email ? 'arena-demo-2026' : id()), 'org_admin', now());
+    userId, orgId, email ?? `admin@${slug}.example`, `${pick(FIRST)} ${pick(LAST)}`, hashPassword(email ? 'diary-demo-2026' : id()), 'org_admin', now());
   return { id: userId, orgId, email: email ?? '', name: 'Admin', role: 'org_admin' };
 }
 
@@ -107,7 +107,7 @@ let tournamentsMade = 0;
 const pastStart = Date.parse('2026-10-03T04:30:00Z');
 
 // ------------------------------------------------------------------ the demo club
-const demo = makeOrg(ORG_NAMES[0], 'demo@arenaos.app');
+const demo = makeOrg(ORG_NAMES[0], 'demo@sportsdiary.app');
 db.prepare('UPDATE organizations SET plan = ? WHERE id = ?').run('pro', demo.orgId);
 const arena = venue(demo, 'Riverside Arena', [
   ['Badminton Court 1', 'court'], ['Badminton Court 2', 'court'], ['Badminton Court 3', 'court'], ['Badminton Court 4', 'court'],
@@ -121,7 +121,7 @@ const s = (name: string) => {
   return row?.id ?? all[0];
 };
 // scorer account for the demo
-db.prepare('INSERT INTO users (id, org_id, email, name, password_hash, role, created_at) VALUES (?,?,?,?,?,?,?)').run(id(), demo.orgId, 'scorer@arenaos.app', 'Court Scorer', hashPassword('arena-demo-2026'), 'scorer', now());
+db.prepare('INSERT INTO users (id, org_id, email, name, password_hash, role, created_at) VALUES (?,?,?,?,?,?,?)').run(id(), demo.orgId, 'scorer@sportsdiary.app', 'Court Scorer', hashPassword('diary-demo-2026'), 'scorer', now());
 
 // Badminton round robin across the 4 courts: two rounds done, round 3 live
 const bp = players(demo, 8, 'badminton');
@@ -217,6 +217,6 @@ const count = (t: string) => (db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get()
 console.log(`Seeded in ${((Date.now() - t0) / 1000).toFixed(1)}s:`);
 console.log(`  organizations ${count('organizations')}, tournaments ${count('tournaments')}, teams ${count('teams')}, players ${count('players')}`);
 console.log(`  venues ${count('venues')}, courts/tables/fields ${count('surfaces')}, matches ${count('matches')} (${(db.prepare("SELECT COUNT(*) AS n FROM matches WHERE status='live'").get() as any).n} live), events ${count('match_events')}, screens ${count('display_devices')}`);
-console.log('\nDemo login: demo@arenaos.app / arena-demo-2026   (scorer: scorer@arenaos.app / arena-demo-2026)');
+console.log('\nDemo login: demo@sportsdiary.app / diary-demo-2026   (scorer: scorer@sportsdiary.app / diary-demo-2026)');
 void tournamentsMade;
 await app.close();

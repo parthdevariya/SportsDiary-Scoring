@@ -338,7 +338,7 @@ export function createApp(opts: { dbFile?: string; rateLimitScale?: number } = {
   route('GET', '/api/qr', 'public', async (r) => {
     const data = r.query.get('data') ?? '';
     if (!data || data.length > 512) throw new HttpError(400, 'data required (max 512 chars)', 'VALIDATION');
-    return raw('image/svg+xml', await QRCode.toString(data, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#0F1D2E', light: '#FFFFFF' } }), 200, { 'cache-control': 'public, max-age=86400' });
+    return raw('image/svg+xml', await QRCode.toString(data, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#062547', light: '#FFFFFF' } }), 200, { 'cache-control': 'public, max-age=86400' });
   });
   route('GET', '/api/health', 'public', () => ({ ok: true, time: now(), sockets: hub.clients.size }));
 

@@ -14,6 +14,7 @@
 import { Realtime } from './lib/rt.ts';
 import { boardHtml, esc, renderBoard, startClockTicker } from './lib/board.ts';
 import { t } from './lib/i18n.ts';
+import { logo } from './lib/brand.ts';
 
 const store = {
   get<T>(k: string): T | null {
@@ -111,7 +112,7 @@ function persist() {
 function applyTheme(theme: any = {}, branding: any = {}) {
   const r = document.documentElement.style;
   const accent = theme.accent ?? branding.accent;
-  if (accent && /^#[0-9a-f]{3,8}$/i.test(accent)) r.setProperty('--amber', accent);
+  if (accent && /^#[0-9a-f]{3,8}$/i.test(accent)) r.setProperty('--green', accent);
   if (theme.background && /^#[0-9a-f]{3,8}$/i.test(theme.background)) r.setProperty('--night', theme.background);
 }
 
@@ -201,7 +202,7 @@ function renderView(v: any) {
       const n = tiles.length;
       const cols = document.body.classList.contains('portrait') ? (n > 4 ? 2 : 1) : n <= 1 ? 1 : n <= 4 ? 2 : n <= 9 ? 3 : 4;
       app.innerHTML = `<section class="stage stage-grid">
-        ${v.title ? `<h1 class="grid-title">${esc(v.title)}</h1>` : ''}
+        <header class="grid-head">${v.title ? `<h1 class="grid-title">${esc(v.title)}</h1>` : '<span></span>'}${logo('dark', 'logo grid-logo')}</header>
         <div class="grid" style="--cols:${cols}">${tiles.map((x) => `<div class="tile" data-tile="${esc(x.code ?? '')}" data-surface="${esc(x.surface ?? '')}">${
           x.code && state.matches[x.code] ? boardHtml(state.matches[x.code], 'tile', { surface: x.surface }) : `<div class="tile-empty"><strong>${esc(x.surface ?? '')}</strong><span>${esc(t('noCourtMatch'))}</span></div>`
         }</div>`).join('')}</div></section>`;
@@ -210,7 +211,7 @@ function renderView(v: any) {
     case 'standings': {
       const tour = state.tournaments[v.tournament];
       if (!tour?.standings) return renderIdle();
-      app.innerHTML = `<section class="stage stage-table"><h1>${esc(tour.name)}</h1><h2>${esc(t('standings'))}</h2>${tour.standings.tables.map((tb: any) => `
+      app.innerHTML = `<section class="stage stage-table"><header class="grid-head"><h1>${esc(tour.name)}</h1>${logo('dark', 'logo grid-logo')}</header><h2>${esc(t('standings'))}</h2>${tour.standings.tables.map((tb: any) => `
         ${tb.group ? `<h3>Group ${esc(tb.group)}</h3>` : ''}
         <table class="standings"><thead><tr><th></th><th></th><th>${t('played')}</th><th>${t('won')}</th><th>${t('drawn')}</th><th>${t('lost')}</th><th>+/−</th>${tb.rows.some((r: any) => r.nrr != null) ? '<th>NRR</th>' : ''}<th>${t('pts')}</th></tr></thead>
         <tbody>${tb.rows.map((r: any, i: number) => `<tr><td class="pos">${i + 1}</td><td class="nm">${esc(r.name)}</td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td><td>${r.diff > 0 ? '+' : ''}${r.diff}</td>${r.nrr != null ? `<td>${r.nrr.toFixed(3)}</td>` : ''}<td class="pts">${r.points}</td></tr>`).join('')}</tbody></table>`).join('')}</section>`;
@@ -230,7 +231,7 @@ function renderView(v: any) {
         list = (v.matches ?? []).map((c: string) => state.matches[c]).filter(Boolean);
         title = v.kind === 'results' ? t('results') : t('upcoming');
       }
-      app.innerHTML = `<section class="stage stage-list"><h1>${esc(title)}</h1><ol class="fixtures">${list.map((m) => {
+      app.innerHTML = `<section class="stage stage-list"><header class="grid-head"><h1>${esc(title)}</h1>${logo('dark', 'logo grid-logo')}</header><ol class="fixtures">${list.map((m) => {
         const d = m.display;
         const when = m.scheduledAt ? new Date(m.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
         return `<li class="status-${esc(m.status)}"><span class="when">${m.status === 'live' ? `<span class="pill pill-live"><i></i>${t('live')}</span>` : esc(when)}</span>
@@ -260,7 +261,7 @@ function followQr(code: string) {
 function renderIdle() {
   const org = state.config?.device?.organization;
   app.dataset.view = 'idle';
-  app.innerHTML = `<section class="stage stage-idle"><div class="mark">Arena<span>OS</span></div>${org ? `<p class="org">${esc(org)}</p>` : ''}<p>${esc(
+  app.innerHTML = `<section class="stage stage-idle">${logo()}${org ? `<p class="org">${esc(org)}</p>` : ''}<p>${esc(
     path[1] === 'm' && !state.matches[path[2]?.toUpperCase()] ? t('connecting') : t('idle'),
   )}</p>${state.config?.device?.name ? `<p class="dev">${esc(state.config.device.name)}</p>` : ''}</section>`;
 }
@@ -269,7 +270,7 @@ function renderPairing(code: string | null) {
   app.dataset.view = 'pair';
   const pairUrl = `${location.origin}/pair?code=${code ?? ''}`;
   app.innerHTML = `<section class="stage stage-pair">
-    <div class="pair-copy"><div class="mark">Arena<span>OS</span></div><h1>${esc(t('pairTitle'))}</h1><p>${esc(t('pairHelp'))}</p>
+    <div class="pair-copy">${logo()}<h1>${esc(t('pairTitle'))}</h1><p>${esc(t('pairHelp'))}</p>
     <div class="pin" aria-label="Pairing code">${(code ?? '······').split('').map((c) => `<span>${esc(c)}</span>`).join('')}</div>
     <p class="hint">${esc(t('pairExpires'))}</p></div>
     ${code ? `<img class="pair-qr" src="/api/qr?data=${encodeURIComponent(pairUrl)}" alt="QR code to pair this screen">` : ''}

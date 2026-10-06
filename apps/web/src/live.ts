@@ -3,6 +3,7 @@ import { esc, renderBoard, startClockTicker } from './lib/board.ts';
 import { Realtime } from './lib/rt.ts';
 import { toast } from './lib/api.ts';
 import { LANGS, getLang, setLang, t } from './lib/i18n.ts';
+import { logo } from './lib/brand.ts';
 
 const app = document.getElementById('app')!;
 const [kind, raw] = location.pathname.split('/').filter(Boolean);
@@ -49,7 +50,7 @@ function renderMatch() {
   const d = detail.display;
   document.title = `${d.sides[0].name} ${d.sides[0].score}–${d.sides[1].score} ${d.sides[1].name}`;
   app.innerHTML = `
-    <header class="live-top"><a class="mark" href="/">Arena<span>OS</span></a>${detail.organization ? `<span class="org">${esc(detail.organization)}</span>` : ''}${langPicker()}</header>
+    <header class="live-top"><a class="logo-link" href="/">${logo()}</a>${detail.organization ? `<span class="org">${esc(detail.organization)}</span>` : ''}${langPicker()}</header>
     <section id="board" class="live-board"></section>
     <section class="share" aria-label="Share">
       <a class="btn" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}">WhatsApp</a>
@@ -99,7 +100,7 @@ function renderTournament() {
     byRound.set(k, [...(byRound.get(k) ?? []), m]);
   }
   app.innerHTML = `
-    <header class="live-top"><a class="mark" href="/">Arena<span>OS</span></a>${langPicker()}</header>
+    <header class="live-top"><a class="logo-link" href="/">${logo()}</a>${langPicker()}</header>
     <h1 class="t-name">${esc(tour.name)}</h1>
     ${groups.map((g) => `<section class="stats"><h2>${g.group ? `Group ${esc(g.group)}` : esc(t('standings'))}</h2>
       <table class="standings"><thead><tr><th></th><th></th><th>${t('played')}</th><th>${t('won')}</th><th>${t('lost')}</th><th>+/−</th><th>${t('pts')}</th></tr></thead>

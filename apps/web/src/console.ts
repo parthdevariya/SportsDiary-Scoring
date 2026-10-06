@@ -3,6 +3,7 @@ import { api, session, toast } from './lib/api.ts';
 import { boardHtml, esc, startClockTicker } from './lib/board.ts';
 import { Realtime } from './lib/rt.ts';
 import { openCastSheet } from './lib/cast.ts';
+import { logo } from './lib/brand.ts';
 
 const app = document.getElementById('app')!;
 const params = new URLSearchParams(location.search);
@@ -22,7 +23,7 @@ function renderAuth(mode: 'login' | 'register' = 'login') {
   app.innerHTML = `
   <main class="auth-wrap">
     <section class="auth-pitch">
-      <div class="mark">Arena<span>OS</span></div>
+      ${logo()}
       <h1>Score any sport. Put it on every screen.</h1>
       <p>Football to snooker, one scorer app. Pair a TV with a six-digit code and it follows the match on its own.</p>
     </section>
@@ -64,7 +65,7 @@ function shell(active: string, body: string) {
   app.innerHTML = `
   <div class="shell">
     <aside class="nav">
-      <div class="mark">Arena<span>OS</span></div>
+      ${logo()}
       <p class="org-name">${esc(me.organization.name)}</p>
       <nav>${NAV.map(([id, label]) => `<a href="#${id}" class="${id === active ? 'active' : ''}">${label}</a>`).join('')}</nav>
       <div class="nav-foot"><span>${esc(me.user.name)}<small>${esc(me.user.role.replace('_', ' '))}</small></span><button class="link" data-cmd="logout">Sign out</button></div>
